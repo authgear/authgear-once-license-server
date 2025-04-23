@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "mjml": "^4.15.3"
+  }
+}

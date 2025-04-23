@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="und" dir="auto" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+
+<head>
+  <title></title>
+  <!--[if !mso]><!-->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!--<![endif]-->
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style type="text/css">
+    #outlook a {
+      padding: 0;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+
+    table,
+    td {
+      border-collapse: collapse;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+
+    img {
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+      -ms-interpolation-mode: bicubic;
+    }
+
+    p {
+      display: block;
+      margin: 13px 0;
+    }
+
+  </style>
+  <!--[if mso]>
+    <noscript>
+    <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+    </xml>
+    </noscript>
+    <![endif]-->
+  <!--[if lte mso 11]>
+    <style type="text/css">
+      .mj-outlook-group-fix { width:100% !important; }
+    </style>
+    <![endif]-->
+  <style type="text/css">
+    @media only screen and (min-width:480px) {
+      .mj-column-per-100 {
+        width: 100% !important;
+        max-width: 100%;
+      }
+    }
+
+  </style>
+  <style media="screen and (min-width:480px)">
+    .moz-text-html .mj-column-per-100 {
+      width: 100% !important;
+      max-width: 100%;
+    }
+
+  </style>
+  <style type="text/css">
+    ul,
+    ol {
+      margin: 0;
+      padding: 0 1.5rem;
+    }
+
+    pre,
+    code {
+      background: #F6F5F3;
+      border: 1px solid #DFDEE1;
+      border-radius: 4px;
+      margin: 0;
+    }
+
+    pre {
+      padding: 0.75em 1em;
+    }
+
+    code {
+      padding: 2px;
+    }
+
+    ul li,
+    ol li {
+      margin-block-end: 1em;
+      margin-block-start: 1em;
+    }
+
+    p {
+      margin: 1rem 0;
+    }
+
+  </style>
+</head>
+
+<body style="word-spacing:normal;">
+  <div style="" lang="und" dir="auto">
+    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:600px;" width="600" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
+    <div style="margin:0px auto;max-width:600px;">
+      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+        <tbody>
+          <tr>
+            <td style="direction:ltr;font-size:0px;padding:20px 0;text-align:center;">
+              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:600px;" ><![endif]-->
+              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+                  <tbody>
+                    <tr>
+                      <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                        <div style="font-family:-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji;font-size:13px;line-height:1;text-align:left;color:#000000;">
+                          <p>Hey there,</p>
+                          <p>Thank you for purchasing Authgear once. This email contains everything you need to install and host Authgear on your own server.</p>
+                          <p>Before you begin, you will need a few things:</p>
+                          <ul>
+                            <li>A domain name.</li>
+                            <li>A web server with Docker installed.</li>
+                          </ul>
+                          <p>Follow these steps to get Authgear running:</p>
+                          <ol>
+                            <li><strong>Choose a machine to host Authgear.</strong></li>
+                            <li>
+                              <p><strong>Add the following DNS records:</strong></p>
+                              <ul>
+                                <li><code>A auth.example.com IP</code></li>
+                                <li><code>A authgear-portal.example.com IP</code></li>
+                                <li><code>A authgear-portal-accounts.example.com IP</code></li>
+                              </ul>
+                              <p>The above example assumes your domain is <code>example.com</code>.</p>
+                            </li>
+                            <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
+                            <li><strong>Run the following command in the terminal</strong></li>
+                          </ol>
+                          <pre>{{ $.InstallationOneliner }}</pre>
+                          <p> The personalized command above contains your unique license key. DO NO share this command on public forums, websites, or repositories as it's tied to the license you purchased. </p>
+                          <p> After installation, you can check for updates and upgrade your Authgear instance by running: </p>
+                          <pre>authgear-once upgrade</pre>
+                          <p> If you'd like to run multiple installations of Authgear, you'll need to get one license per installation/domain. </p>
+                          <p> We're excited to see what you build with Authgear! Here's how to get help if needed: </p>
+                          <ul>
+                            <li>Documentation: <a href="https://docs.authgear.com">docs.authgear.com</a></li>
+                            <li>Community: Join our <a href="https://discord.gg/Kdn5vcYwAS">Discord community</a> to share your project and connect with other developers</li>
+                            <li>Email: <a href="mailto:once@authgear.com">once@authgear.com</a></li>
+                          </ul>
+                          <p>Happy building!</p>
+                          <p>Authgear team</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <!--[if mso | IE]></td></tr></table><![endif]-->
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!--[if mso | IE]></td></tr></table><![endif]-->
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,94 @@
+<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-text padding="10px 25px" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji" />
+    </mj-attributes>
+    <mj-style>
+      ul, ol {
+        margin: 0;
+        padding: 0 1.5rem;
+      }
+      pre, code {
+        background: #F6F5F3;
+        border: 1px solid #DFDEE1;
+        border-radius: 4px;
+        margin: 0;
+      }
+      pre {
+        padding: 0.75em 1em;
+      }
+      code {
+        padding: 2px;
+      }
+      ul li,
+      ol li {
+        margin-block-end: 1em;
+        margin-block-start: 1em;
+      }
+      p {
+        margin: 1rem 0;
+      }
+    </mj-style>
+  </mj-head>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text>
+          <p>Hey there,</p>
+
+          <p>Thank you for purchasing Authgear once. This email contains everything you need to install and host Authgear on your own server.</p>
+
+          <p>Before you begin, you will need a few things:</p>
+          <ul>
+            <li>A domain name.</li>
+            <li>A web server with Docker installed.</li>
+          </ul>
+
+          <p>Follow these steps to get Authgear running:</p>
+          <ol>
+            <li><strong>Choose a machine to host Authgear.</strong></li>
+            <li>
+              <p><strong>Add the following DNS records:</strong></p>
+              <ul>
+                <li><code>A auth.example.com IP</code></li>
+                <li><code>A authgear-portal.example.com IP</code></li>
+                <li><code>A authgear-portal-accounts.example.com IP</code></li>
+              </ul>
+              <p>The above example assumes your domain is <code>example.com</code>.</p>
+            </li>
+            <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
+            <li><strong>Run the following command in the terminal</strong></li>
+          </ol>
+
+          <pre>{{ $.InstallationOneliner }}</pre>
+
+          <p>
+            The personalized command above contains your unique license key. DO NO share this command on public forums, websites, or repositories as it's tied to the license you purchased.
+          </p>
+
+          <p>
+            After installation, you can check for updates and upgrade your Authgear instance by running:
+          </p>
+          <pre>authgear-once upgrade</pre>
+
+          <p>
+            If you'd like to run multiple installations of Authgear, you'll need to get one license per installation/domain.
+          </p>
+
+          <p>
+            We're excited to see what you build with Authgear! Here's how to get help if needed:
+          </p>
+          <ul>
+            <li>Documentation: <a href="https://docs.authgear.com">docs.authgear.com</a></li>
+            <li>Community: Join our <a href="https://discord.gg/Kdn5vcYwAS">Discord community</a> to share your project and connect with other developers</li>
+            <li>Email: <a href="mailto:once@authgear.com">once@authgear.com</a></li>
+          </ul>
+
+          <p>Happy building!</p>
+
+          <p>Authgear team</p>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
