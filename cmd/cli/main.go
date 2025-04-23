@@ -8,13 +8,16 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/client"
+	"gopkg.in/gomail.v2"
 
 	"github.com/authgear/authgear-once-license-server/pkg/httpmiddleware"
+	"github.com/authgear/authgear-once-license-server/pkg/smtp"
 	pkgstripe "github.com/authgear/authgear-once-license-server/pkg/stripe"
 )
 
@@ -123,6 +126,7 @@ var dependenciesKey = dependenciesKeyType{}
 
 type Dependencies struct {
 	StripeClient                    *client.API
+	SMTPDialer                      *gomail.Dialer
 	StripeCheckoutSessionSuccessURL string
 	StripeCheckoutSessionCancelURL  string
 	StripeCheckoutSessionPriceID    string
@@ -140,8 +144,21 @@ func main() {
 	}
 
 	stripeClient := pkgstripe.NewClient(os.Getenv("STRIPE_SECRET_KEY"))
+	smtpPort, err := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	if err != nil {
+		panic(err)
+	}
+
+	smtpDialer := smtp.NewDialer(smtp.NewDialerOptions{
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPPort:     smtpPort,
+		SMTPUsername: os.Getenv("SMTP_USERNAME"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+	})
+
 	dependencies := Dependencies{
 		StripeClient:                    stripeClient,
+		SMTPDialer:                      smtpDialer,
 		StripeCheckoutSessionSuccessURL: os.Getenv("STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
 		StripeCheckoutSessionCancelURL:  os.Getenv("STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
 		StripeCheckoutSessionPriceID:    os.Getenv("STRIPE_CHECKOUT_SESSION_PRICE_ID"),
