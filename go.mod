@@ -2,7 +2,10 @@ module github.com/authgear/authgear-once-license-server
 
 go 1.24.2
 
-require github.com/spf13/cobra v1.9.1
+require (
+	github.com/iawaknahc/originmatcher v0.0.0-20240717084358-ac10088d8800
+	github.com/spf13/cobra v1.9.1
+)
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
