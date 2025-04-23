@@ -39,6 +39,7 @@ var serveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		mux := http.NewServeMux()
 		cors := httpmiddleware.CORSMiddleware(os.Getenv("CORS_ALLOWED_ORIGINS"))
+		maxbytes := httpmiddleware.MaxBytesMiddleware(100 * 1000) // 100KB
 
 		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
@@ -68,7 +69,7 @@ var serveCmd = &cobra.Command{
 
 		server := &http.Server{
 			Addr:    ":8200",
-			Handler: cors(mux),
+			Handler: maxbytes(cors(mux)),
 			BaseContext: func(_ net.Listener) context.Context {
 				return cmd.Context()
 			},
