@@ -16,6 +16,7 @@ import (
 	"github.com/stripe/stripe-go/v82/client"
 	"gopkg.in/gomail.v2"
 
+	"github.com/authgear/authgear-once-license-server/pkg/emailtemplate"
 	"github.com/authgear/authgear-once-license-server/pkg/httpmiddleware"
 	"github.com/authgear/authgear-once-license-server/pkg/smtp"
 	pkgstripe "github.com/authgear/authgear-once-license-server/pkg/stripe"
@@ -96,8 +97,34 @@ var serveCmd = &cobra.Command{
 				if err != nil {
 					panic(err)
 				}
-				// TODO: Send email
-				log.Printf("%v", string(b))
+				id, ok := pkgstripe.GetCheckoutSessionID(e)
+				if !ok {
+					log.Printf("checkout session ID not found: %v", string(b))
+					return
+				}
+
+				email, ok := pkgstripe.GetCustomerEmail(e)
+				if !ok {
+					log.Printf("customer email not found: %v", string(b))
+					return
+				}
+
+				htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
+					InstallationOneliner: "TODO",
+				})
+
+				opts := smtp.EmailOptions{
+					Sender:   deps.SMTPSender,
+					Subject:  "Installing Authgear once",
+					HTMLBody: htmlBody,
+					To:       email,
+				}
+
+				err = smtp.SendEmail(deps.SMTPDialer, opts)
+				if err != nil {
+					log.Printf("failed to send email: %v", err)
+				}
+				log.Printf("sent installation to checkout session %v", id)
 			}
 		})
 
@@ -127,6 +154,7 @@ var dependenciesKey = dependenciesKeyType{}
 type Dependencies struct {
 	StripeClient                    *client.API
 	SMTPDialer                      *gomail.Dialer
+	SMTPSender                      string
 	StripeCheckoutSessionSuccessURL string
 	StripeCheckoutSessionCancelURL  string
 	StripeCheckoutSessionPriceID    string
@@ -159,6 +187,7 @@ func main() {
 	dependencies := Dependencies{
 		StripeClient:                    stripeClient,
 		SMTPDialer:                      smtpDialer,
+		SMTPSender:                      os.Getenv("SMTP_SENDER"),
 		StripeCheckoutSessionSuccessURL: os.Getenv("STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
 		StripeCheckoutSessionCancelURL:  os.Getenv("STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
 		StripeCheckoutSessionPriceID:    os.Getenv("STRIPE_CHECKOUT_SESSION_PRICE_ID"),
