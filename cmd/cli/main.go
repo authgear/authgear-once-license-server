@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/client"
 
 	"github.com/authgear/authgear-once-license-server/pkg/httpmiddleware"
@@ -41,12 +43,12 @@ var serveCmd = &cobra.Command{
 		cors := httpmiddleware.CORSMiddleware(os.Getenv("CORS_ALLOWED_ORIGINS"))
 		maxbytes := httpmiddleware.MaxBytesMiddleware(100 * 1000) // 100KB
 
-		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(indexHTML))
 		})
 
-		mux.HandleFunc("POST /v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {
 			defer r.Body.Close()
 
 			ctx := r.Context()
@@ -65,6 +67,35 @@ var serveCmd = &cobra.Command{
 			}
 
 			http.Redirect(w, r, checkoutSession.URL, http.StatusSeeOther)
+		})
+
+		// The API version must be 2025-03-31.basil
+		mux.HandleFunc("/v1/stripe/webhook", func(w http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+
+			ctx := r.Context()
+			deps := GetDependencies(ctx)
+
+			e, err := pkgstripe.ConstructEvent(r, deps.StripeWebhookSigningSecret)
+			if err != nil {
+				log.Printf("failed to construct webhook event: %v", err)
+				if !pkgstripe.IsWebhookClientError(err) {
+					http.Error(w, "failed to construct webhook event", http.StatusInternalServerError)
+				} else {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+				}
+				return
+			}
+
+			switch e.Type {
+			case stripe.EventTypeCheckoutSessionCompleted:
+				b, err := json.Marshal(e)
+				if err != nil {
+					panic(err)
+				}
+				// TODO: Send email
+				log.Printf("%v", string(b))
+			}
 		})
 
 		server := &http.Server{
@@ -95,6 +126,7 @@ type Dependencies struct {
 	StripeCheckoutSessionSuccessURL string
 	StripeCheckoutSessionCancelURL  string
 	StripeCheckoutSessionPriceID    string
+	StripeWebhookSigningSecret      string
 }
 
 func GetDependencies(ctx context.Context) Dependencies {
@@ -113,6 +145,7 @@ func main() {
 		StripeCheckoutSessionSuccessURL: os.Getenv("STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
 		StripeCheckoutSessionCancelURL:  os.Getenv("STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
 		StripeCheckoutSessionPriceID:    os.Getenv("STRIPE_CHECKOUT_SESSION_PRICE_ID"),
+		StripeWebhookSigningSecret:      os.Getenv("STRIPE_WEBHOOK_SIGNING_SECRET"),
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, dependenciesKey, dependencies)
