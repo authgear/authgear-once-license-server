@@ -3,8 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/authgear/authgear-once-license-server/pkg/emailtemplate"
 	"github.com/authgear/authgear-once-license-server/pkg/httpmiddleware"
+	"github.com/authgear/authgear-once-license-server/pkg/slogging"
 	"github.com/authgear/authgear-once-license-server/pkg/smtp"
 	pkgstripe "github.com/authgear/authgear-once-license-server/pkg/stripe"
 )
@@ -42,7 +42,7 @@ var rootCmd = &cobra.Command{
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the HTTP server at port 8200",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		mux := http.NewServeMux()
 		cors := httpmiddleware.CORSMiddleware(os.Getenv("CORS_ALLOWED_ORIGINS"))
 		maxbytes := httpmiddleware.MaxBytesMiddleware(100 * 1000) // 100KB
@@ -56,6 +56,7 @@ var serveCmd = &cobra.Command{
 			defer r.Body.Close()
 
 			ctx := r.Context()
+			logger := slogging.GetLogger(ctx)
 			deps := GetDependencies(ctx)
 			stripeClient := deps.StripeClient
 
@@ -65,7 +66,8 @@ var serveCmd = &cobra.Command{
 				PriceID:    deps.StripeCheckoutSessionPriceID,
 			})
 			if err != nil {
-				log.Printf("failed to create checkout session: %v", err)
+				slogging.Error(ctx, logger, "failed to create checkout session",
+					"error", err)
 				http.Error(w, "failed to create checkout session", http.StatusInternalServerError)
 				return
 			}
@@ -78,11 +80,13 @@ var serveCmd = &cobra.Command{
 			defer r.Body.Close()
 
 			ctx := r.Context()
+			logger := slogging.GetLogger(ctx)
 			deps := GetDependencies(ctx)
 
 			e, err := pkgstripe.ConstructEvent(r, deps.StripeWebhookSigningSecret)
 			if err != nil {
-				log.Printf("failed to construct webhook event: %v", err)
+				slogging.Error(ctx, logger, "failed to construct webhook event",
+					"error", err)
 				if !pkgstripe.IsWebhookClientError(err) {
 					http.Error(w, "failed to construct webhook event", http.StatusInternalServerError)
 				} else {
@@ -97,15 +101,17 @@ var serveCmd = &cobra.Command{
 				if err != nil {
 					panic(err)
 				}
+				logger = logger.With("stripe_event_json", string(b))
+
 				id, ok := pkgstripe.GetCheckoutSessionID(e)
 				if !ok {
-					log.Printf("checkout session ID not found: %v", string(b))
+					slogging.Error(ctx, logger, "checkout session ID not found")
 					return
 				}
 
 				email, ok := pkgstripe.GetCustomerEmail(e)
 				if !ok {
-					log.Printf("customer email not found: %v", string(b))
+					slogging.Error(ctx, logger, "customer email not found")
 					return
 				}
 
@@ -122,24 +128,32 @@ var serveCmd = &cobra.Command{
 
 				err = smtp.SendEmail(deps.SMTPDialer, opts)
 				if err != nil {
-					log.Printf("failed to send email: %v", err)
+					slogging.Error(ctx, logger, "failed to send email",
+						"error", err)
+				} else {
+					slogging.Info(ctx, logger, "sent installation to checkout session",
+						"checkout_session_id", id)
 				}
-				log.Printf("sent installation to checkout session %v", id)
 			}
 		})
 
+		ctx := cmd.Context()
+		logger := slogging.GetLogger(ctx)
 		server := &http.Server{
 			Addr:    ":8200",
 			Handler: maxbytes(cors(mux)),
 			BaseContext: func(_ net.Listener) context.Context {
-				return cmd.Context()
+				return ctx
 			},
 		}
 
 		err := server.ListenAndServe()
 		if err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+			slogging.Error(ctx, logger, "failed to start server",
+				"error", err)
+			return err
 		}
+		return nil
 	},
 }
 
@@ -195,9 +209,12 @@ func main() {
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, dependenciesKey, dependencies)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	ctx = slogging.WithLogger(ctx, logger)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		slogging.Error(ctx, logger, "root command completed with error",
+			"error", err)
 		os.Exit(1)
 	}
 }
