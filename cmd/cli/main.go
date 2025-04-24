@@ -8,8 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/getsentry/sentry-go"
+	sentryslog "github.com/getsentry/sentry-go/slog"
 	"github.com/joho/godotenv"
+	slogmulti "github.com/samber/slog-multi"
 	"github.com/spf13/cobra"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/client"
@@ -185,6 +189,16 @@ func main() {
 		panic(err)
 	}
 
+	err = sentry.Init(sentry.ClientOptions{
+		Dsn:              os.Getenv("SENTRY_DSN"),
+		AttachStacktrace: true,
+		EnableTracing:    false,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer sentry.Flush(2 * time.Second)
+
 	stripeClient := pkgstripe.NewClient(os.Getenv("STRIPE_SECRET_KEY"))
 	smtpPort, err := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	if err != nil {
@@ -209,7 +223,15 @@ func main() {
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, dependenciesKey, dependencies)
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+
+	textHandler := slog.NewTextHandler(os.Stderr, nil)
+	sentryHandler := sentryslog.Option{
+		Level:     slog.LevelError,
+		AddSource: true,
+	}.NewSentryHandler()
+	handler := slogmulti.Fanout(textHandler, sentryHandler)
+	logger := slog.New(handler)
+
 	ctx = slogging.WithLogger(ctx, logger)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
