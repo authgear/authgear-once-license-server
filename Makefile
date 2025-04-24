@@ -1,3 +1,5 @@
+GIT_HASH ?= git-$(shell git rev-parse --short=12 HEAD)
+
 .PHONY: start
 start:
 	go run ./cmd/cli serve
@@ -32,3 +34,11 @@ check-tidy:
 	$(MAKE) mjml
 	go mod tidy
 	test -z "$(shell git status --porcelain)"
+
+.PHONY: build-image
+build-image:
+	docker build --pull --file ./cmd/cli/Dockerfile --tag quay.io/theauthgear/authgear-once-license-server:$(GIT_HASH) .
+
+.PHONY: push-image
+push-image:
+	docker push quay.io/theauthgear/authgear-once-license-server:$(GIT_HASH)

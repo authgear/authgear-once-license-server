@@ -21,6 +21,11 @@ jobs:
     - uses: actions/setup-go@v4
       with:
         go-version-file: "./go.mod"
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: "./.tool-versions"
+    - run: npm ci
+      working-directory: ./scripts/npm
     - run: make govulncheck
       if: ${{ !cancelled() }}
     - run: make lint
@@ -31,3 +36,25 @@ jobs:
       if: ${{ !cancelled() }}
     - run: make build
       if: ${{ !cancelled() }}
+
+  image:
+    runs-on: ubuntu-24.04
+    needs: ["test"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: docker login
+      if: ${{ github.repository == 'authgear/authgear-once-license-server' && github.event_name == 'push' }}
+      env:
+        DOCKER_USERNAME: ${{ secrets.QUAY_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.QUAY_ROBOT_TOKEN }}
+      run: |
+        printf "$DOCKER_PASSWORD" | docker login --password-stdin --username "$DOCKER_USERNAME" quay.io
+    - name: Build image
+      run: make build-image
+    - name: Push image
+      if: ${{ github.repository == 'authgear/authgear-once-license-server' && github.event_name == 'push' }}
+      run: make push-image
+    - name: docker logout
+      if: ${{ always() }}
+      run: |
+        docker logout quay.io
