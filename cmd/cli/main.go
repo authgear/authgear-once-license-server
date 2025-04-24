@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
+	texttemplate "text/template"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -24,6 +29,7 @@ import (
 	"github.com/authgear/authgear-once-license-server/pkg/slogging"
 	"github.com/authgear/authgear-once-license-server/pkg/smtp"
 	pkgstripe "github.com/authgear/authgear-once-license-server/pkg/stripe"
+	"github.com/authgear/authgear-once-license-server/pkg/uname"
 )
 
 const indexHTML = `<!DOCTYPE html>
@@ -38,6 +44,34 @@ const indexHTML = `<!DOCTYPE html>
 </body>
 </html>
 `
+
+var installationShellScript *texttemplate.Template
+
+func init() {
+	t, err := texttemplate.New("").Parse(`#!/bin/sh
+set -e
+
+echo "Installing the Authgear ONCE command......"
+echo "This script uses sudo, you will be prompted for authentication."
+sudo true
+
+download_url="{{ $.DownloadURL }}?uname_s=$(uname -s)&uname_m=$(uname -m)"
+tmp_path="$(mktemp)"
+curl -fsSL "$download_url" > "$tmp_path"
+sudo mv "$tmp_path" /usr/local/bin/authgear-once
+sudo chmod u+x /usr/local/bin/authgear-once
+
+if [ "$(uname -s)" = "Darwin" ]; then
+	/usr/local/bin/authgear-once setup "{{ $.LicenseKey }}"
+else
+	sudo /usr/local/bin/authgear-once setup "{{ $.LicenseKey }}"
+fi
+`)
+	if err != nil {
+		panic(err)
+	}
+	installationShellScript = t
+}
 
 var rootCmd = &cobra.Command{
 	Use: "authgear-once-license-server",
@@ -54,6 +88,66 @@ var serveCmd = &cobra.Command{
 		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(indexHTML))
+		})
+
+		mux.HandleFunc("GET /install/{license_key}", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			deps := GetDependencies(ctx)
+			logger := slogging.GetLogger(ctx)
+
+			err := r.ParseForm()
+			if err != nil {
+				http.Error(w, "failed to parse form", http.StatusBadRequest)
+				return
+			}
+
+			licenseKey := r.PathValue("license_key")
+			uname_s := r.FormValue("uname_s")
+			uname_m := r.FormValue("uname_m")
+
+			switch {
+			case uname_s == "" || uname_m == "":
+				// uname_s or uname_m is unspecified.
+				// This is the case of the link in the email.
+				// In this case, we return a shell script that is supposed to be run by a oneliner.
+
+				u := ConstructFullURL(r)
+
+				data := map[string]any{
+					"DownloadURL": u.String(),
+					"LicenseKey":  licenseKey,
+				}
+				var buf bytes.Buffer
+				err = installationShellScript.Execute(&buf, data)
+				if err != nil {
+					slogging.Error(ctx, logger, "failed to render installation shell script",
+						"error", err)
+					http.Error(w, "failed to render installation shell script", http.StatusInternalServerError)
+					return
+				}
+
+				w.Header().Set("Content-Type", "text/plain")
+				w.Header().Set("Cache-Control", "no-store")
+				w.Write(buf.Bytes())
+			default:
+				// Otherwise, we return 303 to download the binary.
+				uname_s = uname.NormalizeUnameS(uname_s)
+				uname_m = uname.NormalizeUnameM(uname_m)
+				data := map[string]any{
+					"Uname_s": uname_s,
+					"Uname_m": uname_m,
+				}
+				var buf strings.Builder
+				err = deps.AuthgearOnceDownloadURLGoTemplate.Execute(&buf, data)
+				if err != nil {
+					slogging.Error(ctx, logger, "failed to render download url",
+						"error", err)
+					http.Error(w, "failed to render download url", http.StatusInternalServerError)
+					return
+				}
+
+				http.Redirect(w, r, buf.String(), http.StatusSeeOther)
+			}
 		})
 
 		mux.HandleFunc("/v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {
@@ -119,8 +213,12 @@ var serveCmd = &cobra.Command{
 					return
 				}
 
+				u := ConstructFullURL(r)
+				// FIXME: generate license key.
+				u.Path = fmt.Sprintf("/install/%v", "TODO")
+
 				htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
-					InstallationOneliner: "TODO",
+					InstallationOneliner: fmt.Sprintf(`/bin/sh -c "$(curl -fsSL %v)"`, u.String()),
 				})
 
 				opts := smtp.EmailOptions{
@@ -170,13 +268,30 @@ type dependenciesKeyType struct{}
 var dependenciesKey = dependenciesKeyType{}
 
 type Dependencies struct {
-	StripeClient                    *client.API
-	SMTPDialer                      *gomail.Dialer
-	SMTPSender                      string
-	StripeCheckoutSessionSuccessURL string
-	StripeCheckoutSessionCancelURL  string
-	StripeCheckoutSessionPriceID    string
-	StripeWebhookSigningSecret      string
+	StripeClient                      *client.API
+	SMTPDialer                        *gomail.Dialer
+	SMTPSender                        string
+	StripeCheckoutSessionSuccessURL   string
+	StripeCheckoutSessionCancelURL    string
+	StripeCheckoutSessionPriceID      string
+	StripeWebhookSigningSecret        string
+	PublicURLScheme                   string
+	AuthgearOnceDownloadURLGoTemplate *texttemplate.Template
+}
+
+func ConstructFullURL(r *http.Request) *url.URL {
+	ctx := r.Context()
+	deps := GetDependencies(ctx)
+	scheme := "https"
+	if deps.PublicURLScheme == "http" {
+		scheme = "http"
+	}
+	host := r.Host
+
+	u := *r.URL
+	u.Scheme = scheme
+	u.Host = host
+	return &u
 }
 
 func GetDependencies(ctx context.Context) Dependencies {
@@ -212,14 +327,21 @@ func main() {
 		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 	})
 
+	authgearOnceDownloadURLGoTemplate, err := texttemplate.New("").Parse(os.Getenv("AUTHGEAR_ONCE_BINARY_DOWNLOAD_URL_GO_TEMPLATE"))
+	if err != nil {
+		panic(err)
+	}
+
 	dependencies := Dependencies{
-		StripeClient:                    stripeClient,
-		SMTPDialer:                      smtpDialer,
-		SMTPSender:                      os.Getenv("SMTP_SENDER"),
-		StripeCheckoutSessionSuccessURL: os.Getenv("STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
-		StripeCheckoutSessionCancelURL:  os.Getenv("STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
-		StripeCheckoutSessionPriceID:    os.Getenv("STRIPE_CHECKOUT_SESSION_PRICE_ID"),
-		StripeWebhookSigningSecret:      os.Getenv("STRIPE_WEBHOOK_SIGNING_SECRET"),
+		StripeClient:                      stripeClient,
+		SMTPDialer:                        smtpDialer,
+		SMTPSender:                        os.Getenv("SMTP_SENDER"),
+		StripeCheckoutSessionSuccessURL:   os.Getenv("STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
+		StripeCheckoutSessionCancelURL:    os.Getenv("STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
+		StripeCheckoutSessionPriceID:      os.Getenv("STRIPE_CHECKOUT_SESSION_PRICE_ID"),
+		StripeWebhookSigningSecret:        os.Getenv("STRIPE_WEBHOOK_SIGNING_SECRET"),
+		PublicURLScheme:                   os.Getenv("PUBLIC_URL_SCHEME"),
+		AuthgearOnceDownloadURLGoTemplate: authgearOnceDownloadURLGoTemplate,
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, dependenciesKey, dependencies)
