@@ -1,0 +1,548 @@
+{
+	"info": {
+		"_postman_id": "53a9e39e-8561-44e1-9fe0-49fee24541ed",
+		"name": "keygen",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29795546"
+	},
+	"item": [
+		{
+			"name": "Create an admin token",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{admin_password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{admin_email}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {\n        \"type\": \"tokens\",\n        \"attributes\": {\n            \"name\": \"a token that does not expiry\"\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/tokens",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"tokens"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create a product",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {\n        \"type\": \"product\",\n        \"attributes\": {\n            \"name\": \"my product\",\n            \"distributionStrategy\": \"LICENSED\"\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/products",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete a product",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{endpoint}}/v1/6d660dc5-9a48-4255-beb6-b0049551d053",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"6d660dc5-9a48-4255-beb6-b0049551d053"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List products",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{endpoint}}/v1/products",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create a policy",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {\n        \"type\": \"policy\",\n        \"attributes\": {\n            \"name\": \"my policy\",\n            \"duration\": 86400,\n            \"strict\": true,\n            \"requireFingerprintScope\": true,\n            \"expirationBasis\": \"FROM_FIRST_ACTIVATION\",\n            \"authenticationStrategy\": \"LICENSE\"\n        },\n        \"relationships\": {\n            \"product\": {\n                \"data\": {\n                    \"type\": \"product\",\n                    \"id\": \"eadd971c-8c38-4058-b230-2e28cc959499\"\n                }\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/policies",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"policies"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update policy",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {\n        \"type\": \"policy\",\n        \"attributes\": {\n            \"name\": \"my policy\",\n            \"duration\": 86400,\n            \"strict\": true,\n            \"requireFingerprintScope\": true,\n            \"expirationBasis\": \"FROM_FIRST_ACTIVATION\",\n            \"authenticationStrategy\": \"LICENSE\"\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/policies/b1f3dd0f-8c91-4942-bb8b-cbdef40eba38",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"policies",
+						"b1f3dd0f-8c91-4942-bb8b-cbdef40eba38"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete a policy",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{endpoint}}/v1/policies/b1f3dd0f-8c91-4942-bb8b-cbdef40eba38",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"policies",
+						"b1f3dd0f-8c91-4942-bb8b-cbdef40eba38"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List policies",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{endpoint}}/v1/policies",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"policies"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create license",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {\n        \"type\": \"license\",\n        \"attributes\": {},\n        \"relationships\": {\n            \"policy\": {\n                \"data\": {\n                    \"type\": \"policy\",\n                    \"id\": \"b9cd5c44-859f-4bbc-949b-372de217f037\"\n                }\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/licenses",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"licenses"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete a machine",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "License A0F2D8-359DCA-FFC1F1-FAFD8E-15CCDC-V3",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{endpoint}}/v1/machines/5f78a850-83e9-43cc-baf5-a5776d0f21b1",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"machines",
+						"5f78a850-83e9-43cc-baf5-a5776d0f21b1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List licenses",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{admin_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{endpoint}}/v1/licenses",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"licenses"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Validate a license",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"meta\": {\n        \"key\": \"A0F2D8-359DCA-FFC1F1-FAFD8E-15CCDC-V3\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/licenses/actions/validate-key",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"licenses",
+						"actions",
+						"validate-key"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create a machine",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "License A0F2D8-359DCA-FFC1F1-FAFD8E-15CCDC-V3",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {\n        \"type\": \"machines\",\n        \"attributes\": {\n            \"fingerprint\": \"another-finger-print\",\n            \"name\": \"some machine\"\n        },\n        \"relationships\": {\n            \"license\": {\n                \"data\": {\n                    \"type\": \"license\",\n                    \"id\": \"426f192a-3111-4454-a35f-5af85ab3bd71\"\n                }\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/machines",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"machines"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Activate a license",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"meta\": {\n        \"key\": \"A0F2D8-359DCA-FFC1F1-FAFD8E-15CCDC-V3\",\n        \"scope\": {\n            \"fingerprint\": \"another-finger-print\"\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{endpoint}}/v1/licenses/actions/validate-key",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"licenses",
+						"actions",
+						"validate-key"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List machines of a license",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "License A0F2D8-359DCA-FFC1F1-FAFD8E-15CCDC-V3",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{endpoint}}/v1/licenses/426f192a-3111-4454-a35f-5af85ab3bd71/machines",
+					"host": [
+						"{{endpoint}}"
+					],
+					"path": [
+						"v1",
+						"licenses",
+						"426f192a-3111-4454-a35f-5af85ab3bd71",
+						"machines"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					"pm.request.headers.add({key: 'X-Forwarded-Proto', value: 'https' });"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "endpoint",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "account_id",
+			"value": "36b642d0-88c3-4ded-97a8-ad91ea147b6f",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "admin-foobar",
+			"type": "string"
+		},
+		{
+			"key": "admin_email",
+			"value": "user@example.com",
+			"type": "string"
+		},
+		{
+			"key": "admin_password",
+			"value": "password",
+			"type": "string"
+		}
+	]
+}

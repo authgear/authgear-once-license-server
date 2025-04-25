@@ -8,6 +8,37 @@ GIT_HASH ?= git-$(shell git rev-parse --short=12 HEAD)
 	@# Finally we use cut to remove the `+ ` prefix.
 	sh -o xtrace .env.example 2>&1 | grep '^+ ' | cut -c '3-' | sed -E "s/'//g" > .env
 
+# You need to run the following first.
+#   docker compose up postgres redis
+.PHONY: setup-keygen
+setup-keygen:
+	docker compose run --rm -it keygen-web bundle exec rails keygen:setup
+
+# You need to set
+# ENDPOINT
+# KEYGEN_ADMIN_EMAIL
+# KEYGEN_ADMIN_PASSWORD
+.PHONY: keygen-create-admin-token
+keygen-create-admin-token:
+	./scripts/sh/keygen-create-admin-token.sh
+
+# You need to set
+# ENDPOINT
+# KEYGEN_ADMIN_TOKEN
+.PHONY: keygen-create-product
+keygen-create-product:
+	./scripts/sh/keygen-create-product.sh
+
+# You need to set
+# ENDPOINT
+# KEYGEN_ADMIN_TOKEN
+# POLICY_NAME
+# POLICY_DURATION_SECONDS
+# KEYGEN_PRODUCT_ID
+.PHONY: keygen-create-policy
+keygen-create-policy:
+	./scripts/sh/keygen-create-policy.sh
+
 .PHONY: start
 start:
 	go run ./cmd/cli serve
