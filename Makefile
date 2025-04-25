@@ -1,5 +1,13 @@
 GIT_HASH ?= git-$(shell git rev-parse --short=12 HEAD)
 
+.env:
+	@# -o xtrace means set -x
+	@# That causes sh to print out the result of the command.
+	@# The top level trace is prefixed with `+ `, while the next level trace is prefixed with `++ `.
+	@# We are only interested in the top level trace, so we pipe the trace to grep to keep those with `+ ` only.
+	@# Finally we use cut to remove the `+ ` prefix.
+	sh -o xtrace .env.example 2>&1 | grep '^+ ' | cut -c '3-' | sed -E "s/'//g" > .env
+
 .PHONY: start
 start:
 	go run ./cmd/cli serve
