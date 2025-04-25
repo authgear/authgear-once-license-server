@@ -18,6 +18,8 @@ func NewCheckoutSession(ctx context.Context, client *client.API, params *Checkou
 		SuccessURL: stripe.String(params.SuccessURL),
 		CancelURL:  stripe.String(params.CancelURL),
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
+		// Always create a customer so that we can get a customer_id back.
+		CustomerCreation: stripe.String(string(stripe.CheckoutSessionCustomerCreationAlways)),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(params.PriceID),

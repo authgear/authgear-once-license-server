@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/authgear/authgear-once-license-server/pkg/emailtemplate"
 	"github.com/authgear/authgear-once-license-server/pkg/httpmiddleware"
+	"github.com/authgear/authgear-once-license-server/pkg/keygen"
 	"github.com/authgear/authgear-once-license-server/pkg/slogging"
 	"github.com/authgear/authgear-once-license-server/pkg/smtp"
 	pkgstripe "github.com/authgear/authgear-once-license-server/pkg/stripe"
@@ -199,23 +201,43 @@ var serveCmd = &cobra.Command{
 				if err != nil {
 					panic(err)
 				}
-				logger = logger.With("stripe_event_json", string(b))
+				logger = logger.With("stripe_event_json_base64url", base64.RawURLEncoding.EncodeToString(b))
 
-				id, ok := pkgstripe.GetCheckoutSessionID(e)
+				checkoutSessionID, ok := pkgstripe.GetCheckoutSessionID(e)
 				if !ok {
 					slogging.Error(ctx, logger, "checkout session ID not found")
+					http.Error(w, "checkout session ID not found", http.StatusInternalServerError)
+					return
+				}
+
+				customerID, ok := pkgstripe.GetCustomerID(e)
+				if !ok {
+					slogging.Error(ctx, logger, "customer id not found")
+					http.Error(w, "customer id not found", http.StatusInternalServerError)
 					return
 				}
 
 				email, ok := pkgstripe.GetCustomerEmail(e)
 				if !ok {
 					slogging.Error(ctx, logger, "customer email not found")
+					http.Error(w, "customer email not found", http.StatusInternalServerError)
+					return
+				}
+
+				licenseKey, err := keygen.CreateLicenseKey(ctx, deps.HTTPClient, keygen.CreateLicenseKeyOptions{
+					KeygenConfig:            deps.KeygenConfig,
+					StripeCheckoutSessionID: checkoutSessionID,
+					StripeCustomerID:        customerID,
+				})
+				if err != nil {
+					slogging.Error(ctx, logger, "failed to create license key",
+						"error", err)
+					http.Error(w, "failed to create license key", http.StatusInternalServerError)
 					return
 				}
 
 				u := ConstructFullURL(r)
-				// FIXME: generate license key.
-				u.Path = fmt.Sprintf("/install/%v", "TODO")
+				u.Path = fmt.Sprintf("/install/%v", licenseKey)
 
 				htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
 					InstallationOneliner: fmt.Sprintf(`/bin/sh -c "$(curl -fsSL %v)"`, u.String()),
@@ -232,9 +254,12 @@ var serveCmd = &cobra.Command{
 				if err != nil {
 					slogging.Error(ctx, logger, "failed to send email",
 						"error", err)
+					http.Error(w, "failed to send email", http.StatusInternalServerError)
 				} else {
 					slogging.Info(ctx, logger, "sent installation to checkout session",
-						"checkout_session_id", id)
+						"checkout_session_id", checkoutSessionID,
+						"customer_id", customerID)
+					// Return 200 implicitly.
 				}
 			}
 		})
@@ -268,6 +293,7 @@ type dependenciesKeyType struct{}
 var dependenciesKey = dependenciesKeyType{}
 
 type Dependencies struct {
+	HTTPClient                        *http.Client
 	StripeClient                      *client.API
 	SMTPDialer                        *gomail.Dialer
 	SMTPSender                        string
@@ -277,6 +303,7 @@ type Dependencies struct {
 	StripeWebhookSigningSecret        string
 	PublicURLScheme                   string
 	AuthgearOnceDownloadURLGoTemplate *texttemplate.Template
+	KeygenConfig                      keygen.KeygenConfig
 }
 
 func ConstructFullURL(r *http.Request) *url.URL {
@@ -333,6 +360,7 @@ func main() {
 	}
 
 	dependencies := Dependencies{
+		HTTPClient:                        &http.Client{},
 		StripeClient:                      stripeClient,
 		SMTPDialer:                        smtpDialer,
 		SMTPSender:                        os.Getenv("AUTHGEAR_ONCE_SMTP_SENDER"),
@@ -342,6 +370,11 @@ func main() {
 		StripeWebhookSigningSecret:        os.Getenv("AUTHGEAR_ONCE_STRIPE_WEBHOOK_SIGNING_SECRET"),
 		PublicURLScheme:                   os.Getenv("AUTHGEAR_ONCE_PUBLIC_URL_SCHEME"),
 		AuthgearOnceDownloadURLGoTemplate: authgearOnceDownloadURLGoTemplate,
+		KeygenConfig: keygen.KeygenConfig{
+			Endpoint:   os.Getenv("AUTHGEAR_ONCE_KEYGEN_ENDPOINT"),
+			AdminToken: os.Getenv("AUTHGEAR_ONCE_KEYGEN_ADMIN_TOKEN"),
+			PolicyID:   os.Getenv("AUTHGEAR_ONCE_KEYGEN_POLICY_ID"),
+		},
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, dependenciesKey, dependencies)
