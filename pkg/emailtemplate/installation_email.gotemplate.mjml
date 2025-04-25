@@ -2,6 +2,8 @@
   <mj-head>
     <mj-attributes>
       <mj-text padding="10px 25px" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji" />
+      <!-- The default is 600px, which is too narrow to fix our license key. -->
+      <mj-body width="9999px" />
     </mj-attributes>
     <mj-style>
       ul, ol {
@@ -13,6 +15,7 @@
         border: 1px solid #DFDEE1;
         border-radius: 4px;
         margin: 0;
+        font-size: 80%;
       }
       pre {
         padding: 0.75em 1em;
