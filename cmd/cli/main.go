@@ -82,7 +82,7 @@ var serveCmd = &cobra.Command{
 	Short: "Start the HTTP server at port 8200",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		mux := http.NewServeMux()
-		cors := httpmiddleware.CORSMiddleware(os.Getenv("CORS_ALLOWED_ORIGINS"))
+		cors := httpmiddleware.CORSMiddleware(os.Getenv("AUTHGEAR_ONCE_CORS_ALLOWED_ORIGINS"))
 		maxbytes := httpmiddleware.MaxBytesMiddleware(100 * 1000) // 100KB
 
 		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +305,7 @@ func main() {
 	}
 
 	err = sentry.Init(sentry.ClientOptions{
-		Dsn:              os.Getenv("SENTRY_DSN"),
+		Dsn:              os.Getenv("AUTHGEAR_ONCE_SENTRY_SDN"),
 		AttachStacktrace: true,
 		EnableTracing:    false,
 	})
@@ -314,17 +314,17 @@ func main() {
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	stripeClient := pkgstripe.NewClient(os.Getenv("STRIPE_SECRET_KEY"))
-	smtpPort, err := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	stripeClient := pkgstripe.NewClient(os.Getenv("AUTHGEAR_ONCE_STRIPE_SECRET_KEY"))
+	smtpPort, err := strconv.Atoi(os.Getenv("AUTHGEAR_ONCE_SMTP_PORT"))
 	if err != nil {
 		panic(err)
 	}
 
 	smtpDialer := smtp.NewDialer(smtp.NewDialerOptions{
-		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPHost:     os.Getenv("AUTHGEAR_ONCE_SMTP_HOST"),
 		SMTPPort:     smtpPort,
-		SMTPUsername: os.Getenv("SMTP_USERNAME"),
-		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		SMTPUsername: os.Getenv("AUTHGEAR_ONCE_SMTP_USERNAME"),
+		SMTPPassword: os.Getenv("AUTHGEAR_ONCE_SMTP_PASSWORD"),
 	})
 
 	authgearOnceDownloadURLGoTemplate, err := texttemplate.New("").Parse(os.Getenv("AUTHGEAR_ONCE_BINARY_DOWNLOAD_URL_GO_TEMPLATE"))
@@ -335,12 +335,12 @@ func main() {
 	dependencies := Dependencies{
 		StripeClient:                      stripeClient,
 		SMTPDialer:                        smtpDialer,
-		SMTPSender:                        os.Getenv("SMTP_SENDER"),
-		StripeCheckoutSessionSuccessURL:   os.Getenv("STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
-		StripeCheckoutSessionCancelURL:    os.Getenv("STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
-		StripeCheckoutSessionPriceID:      os.Getenv("STRIPE_CHECKOUT_SESSION_PRICE_ID"),
-		StripeWebhookSigningSecret:        os.Getenv("STRIPE_WEBHOOK_SIGNING_SECRET"),
-		PublicURLScheme:                   os.Getenv("PUBLIC_URL_SCHEME"),
+		SMTPSender:                        os.Getenv("AUTHGEAR_ONCE_SMTP_SENDER"),
+		StripeCheckoutSessionSuccessURL:   os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
+		StripeCheckoutSessionCancelURL:    os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
+		StripeCheckoutSessionPriceID:      os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_PRICE_ID"),
+		StripeWebhookSigningSecret:        os.Getenv("AUTHGEAR_ONCE_STRIPE_WEBHOOK_SIGNING_SECRET"),
+		PublicURLScheme:                   os.Getenv("AUTHGEAR_ONCE_PUBLIC_URL_SCHEME"),
 		AuthgearOnceDownloadURLGoTemplate: authgearOnceDownloadURLGoTemplate,
 	}
 	ctx := context.Background()
