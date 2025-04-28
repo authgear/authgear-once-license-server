@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -48,6 +49,32 @@ const indexHTML = `<!DOCTYPE html>
 `
 
 var installationShellScript *texttemplate.Template
+
+var jsonResponseBadRequest = map[string]any{
+	"error": map[string]any{
+		"code": "bad_request",
+	},
+}
+
+var jsonResponseInternalServerError = map[string]any{
+	"error": map[string]any{
+		"code": "internal_server_error",
+	},
+}
+
+var jsonResponseLicenseKeyNotFound = map[string]any{
+	"error": map[string]any{
+		"code": "license_key_not_found",
+	},
+}
+
+var jsonResponseLicenseKeyAlreadyActivated = map[string]any{
+	"error": map[string]any{
+		"code": "license_key_already_activated",
+	},
+}
+
+var jsonResponseOK = map[string]any{}
 
 func init() {
 	t, err := texttemplate.New("").Parse(`#!/bin/sh
@@ -150,6 +177,49 @@ var serveCmd = &cobra.Command{
 
 				http.Redirect(w, r, buf.String(), http.StatusSeeOther)
 			}
+		})
+
+		mux.HandleFunc("/v1/license/activate", func(w http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+
+			ctx := r.Context()
+			logger := slogging.GetLogger(ctx)
+			deps := GetDependencies(ctx)
+
+			err := r.ParseForm()
+			if err != nil {
+				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+				return
+			}
+
+			licenseKey := r.FormValue("license_key")
+			fingerprint := r.FormValue("fingerprint")
+			if licenseKey == "" || fingerprint == "" {
+				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+				return
+			}
+
+			err = keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.ActivateLicenseOptions{
+				KeygenConfig: deps.KeygenConfig,
+				LicenseKey:   licenseKey,
+				Fingerprint:  fingerprint,
+			})
+			if err != nil {
+				switch {
+				case errors.Is(err, keygen.ErrUnexpectedResponse):
+					slogging.Error(ctx, logger, "unexpected keygen response",
+						"error", err)
+					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+					return
+				case errors.Is(err, keygen.ErrLicenseKeyNotFound):
+					WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
+					return
+				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
+					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
+					return
+				}
+			}
+			WriteJSON(w, jsonResponseOK, http.StatusOK)
 		})
 
 		mux.HandleFunc("/v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {
@@ -319,6 +389,18 @@ func ConstructFullURL(r *http.Request) *url.URL {
 	u.Scheme = scheme
 	u.Host = host
 	return &u
+}
+
+func WriteJSON(w http.ResponseWriter, jsonBody any, statusCode int) {
+	jsonBytes, err := json.Marshal(jsonBody)
+	if err != nil {
+		panic(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(jsonBytes)))
+	w.WriteHeader(statusCode)
+	w.Write(jsonBytes)
 }
 
 func GetDependencies(ctx context.Context) Dependencies {
