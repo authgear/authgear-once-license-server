@@ -68,7 +68,8 @@ func CreateLicenseKey(ctx context.Context, client *http.Client, opts CreateLicen
 	if err != nil {
 		return
 	}
-	patchRequest(req, opts.KeygenConfig)
+	patchRequest(req)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", opts.KeygenConfig.AdminToken))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -102,9 +103,8 @@ func CreateLicenseKey(ctx context.Context, client *http.Client, opts CreateLicen
 	return
 }
 
-func patchRequest(r *http.Request, keygenConfig KeygenConfig) {
+func patchRequest(r *http.Request) {
 	// Keygen requires TLS.
 	// We tell it is.
 	r.Header.Set("X-Forwarded-Proto", "https")
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %v", keygenConfig.AdminToken))
 }
