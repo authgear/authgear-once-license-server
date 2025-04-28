@@ -103,6 +103,7 @@
               </table>
             </li>
             <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
+            <li><strong>Install Docker on the machine.</strong> Visit <a href="https://docs.docker.com/get-started/get-docker/">https://docs.docker.com/get-started/get-docker/</a> for instructions.</li>
             <li><strong>Run the following command in the terminal</strong></li>
           </ol>
 
