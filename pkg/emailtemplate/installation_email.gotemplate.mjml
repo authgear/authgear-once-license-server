@@ -11,7 +11,7 @@
         padding: 0 1.5rem;
       }
       pre, code {
-        background: #F6F5F3;
+        background-color: #F6F5F3;
         border: 1px solid #DFDEE1;
         border-radius: 4px;
         margin: 0;
@@ -31,6 +31,20 @@
       p {
         margin: 1rem 0;
       }
+      .list-number {
+        list-style-type: decimal;
+      }
+      .list-alpha {
+        list-style-type: lower-alpha;
+      }
+      .mytable thead tr {
+        background-color: #F6F5F3;
+      }
+      .mytable th, .mytable td {
+        padding: 8px;
+        border: 1px solid #DFDEE1;
+        border-collapse: collapse;
+      }
     </mj-style>
   </mj-head>
   <mj-body>
@@ -43,21 +57,50 @@
 
           <p>Before you begin, you will need a few things:</p>
           <ul>
-            <li>A domain name.</li>
-            <li>A web server with Docker installed.</li>
+            <li>A domain name</li>
+            <li>A web server with Docker installed</li>
           </ul>
 
           <p>Follow these steps to get Authgear running:</p>
-          <ol>
-            <li><strong>Choose a machine to host Authgear.</strong></li>
+          <ol class="list-number">
             <li>
-              <p><strong>Add the following DNS records:</strong></p>
-              <ul>
-                <li><code>A auth.example.com IP</code></li>
-                <li><code>A authgear-portal.example.com IP</code></li>
-                <li><code>A authgear-portal-accounts.example.com IP</code></li>
-              </ul>
-              <p>The above example assumes your domain is <code>example.com</code>.</p>
+              <p><strong>Choose a machine to host Authgear</strong>, for example cloud services like Digital Ocean, Vultr, fly.io, zeabur.com.</p>
+              <ol class="list-alpha">
+                <li>Install Docker on the machine.</li>
+              </ol>
+            </li>
+            <li>
+              <p><strong>Add the following DNS records for your domain</strong> and point them to the IP of the machine.</p>
+              <table class="mytable">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Value</th>
+                    <th>Usage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>A</td>
+                    <td>auth</td>
+                    <td>IP of the machine</td>
+                    <td>The authentication endpoint</td>
+                  </tr>
+                  <tr>
+                    <td>A</td>
+                    <td>authgear-portal</td>
+                    <td>IP of the machine</td>
+                    <td>The admin portal for CIAM functions</td>
+                  </tr>
+                  <tr>
+                    <td>A</td>
+                    <td>authgear-portal-accounts</td>
+                    <td>IP of the machine</td>
+                    <td>A domain for logging into the Authgear portal. You don't need to access it directly.</td>
+                  </tr>
+                </tbody>
+              </table>
             </li>
             <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
             <li><strong>Run the following command in the terminal</strong></li>
