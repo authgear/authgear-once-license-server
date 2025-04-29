@@ -15,6 +15,7 @@ import (
 var ErrUnexpectedResponse = errors.New("unexpected response")
 var ErrLicenseKeyNotFound = errors.New("license key not found")
 var ErrLicenseKeyAlreadyActivated = errors.New("license key already activated")
+var ErrLicenseKeyExpired = errors.New("license key expired")
 
 type KeygenResponseError struct {
 	DumpedResponse []byte
@@ -178,6 +179,9 @@ func validateLicenseKey(ctx context.Context, client *http.Client, opts validateL
 			return
 		case "FINGERPRINT_SCOPE_MISMATCH":
 			err = ErrLicenseKeyAlreadyActivated
+			return
+		case "EXPIRED":
+			err = ErrLicenseKeyExpired
 			return
 		case "NO_MACHINE", "VALID":
 			data, ok := respBody["data"].(map[string]any)

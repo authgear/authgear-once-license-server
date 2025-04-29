@@ -74,6 +74,12 @@ var jsonResponseLicenseKeyAlreadyActivated = map[string]any{
 	},
 }
 
+var jsonResponseLicenseKeyExpired = map[string]any{
+	"error": map[string]any{
+		"code": "license_key_expired",
+	},
+}
+
 var jsonResponseOK = map[string]any{}
 
 func init() {
@@ -217,6 +223,9 @@ var serveCmd = &cobra.Command{
 				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
 					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
 					return
+				case errors.Is(err, keygen.ErrLicenseKeyExpired):
+					WriteJSON(w, jsonResponseLicenseKeyExpired, http.StatusForbidden)
+					return
 				}
 			}
 			WriteJSON(w, jsonResponseOK, http.StatusOK)
@@ -259,6 +268,9 @@ var serveCmd = &cobra.Command{
 					return
 				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
 					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
+					return
+				case errors.Is(err, keygen.ErrLicenseKeyExpired):
+					WriteJSON(w, jsonResponseLicenseKeyExpired, http.StatusForbidden)
 					return
 				}
 			}
