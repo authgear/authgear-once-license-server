@@ -173,27 +173,35 @@ func validateLicenseKey(ctx context.Context, client *http.Client, opts validateL
 		meta := respBody["meta"].(map[string]any)
 		meta_code := meta["code"].(string)
 
-		switch meta_code {
-		case "NOT_FOUND":
+		if meta_code == "NOT_FOUND" {
 			err = ErrLicenseKeyNotFound
 			return
-		case "FINGERPRINT_SCOPE_MISMATCH":
-			err = ErrLicenseKeyAlreadyActivated
-			return
-		case "EXPIRED":
-			err = ErrLicenseKeyExpired
-			return
-		case "NO_MACHINE", "VALID":
-			data, ok := respBody["data"].(map[string]any)
-			if !ok || data == nil {
-				err = ErrUnexpectedResponse
+		} else {
+			status := respBody["data"].(map[string]any)["attributes"].(map[string]any)["status"].(string)
+			if status == "EXPIRED" {
+				err = ErrLicenseKeyExpired
 				return
 			}
-			licenseID = &LicenseID{
-				ID:          data["id"].(string),
-				IsActivated: meta_code == "VALID",
+
+			switch meta_code {
+			case "FINGERPRINT_SCOPE_MISMATCH":
+				err = ErrLicenseKeyAlreadyActivated
+				return
+			case "EXPIRED":
+				err = ErrLicenseKeyExpired
+				return
+			case "NO_MACHINE", "VALID":
+				data, ok := respBody["data"].(map[string]any)
+				if !ok || data == nil {
+					err = ErrUnexpectedResponse
+					return
+				}
+				licenseID = &LicenseID{
+					ID:          data["id"].(string),
+					IsActivated: meta_code == "VALID",
+				}
+				return
 			}
-			return
 		}
 	}
 
