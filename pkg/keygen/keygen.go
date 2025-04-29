@@ -453,6 +453,33 @@ func ActivateLicense(ctx context.Context, client *http.Client, opts ActivateLice
 	return
 }
 
+type CheckLicenseOptions struct {
+	KeygenConfig KeygenConfig
+	LicenseKey   string
+	Fingerprint  string
+}
+
+// CheckLicense returns the following errors:
+// - ErrUnexpectedResponse
+// - ErrLicenseKeyNotFound
+// - ErrLicenseKeyAlreadyActivated
+func CheckLicense(ctx context.Context, client *http.Client, opts CheckLicenseOptions) (err error) {
+	licenseID, err := validateLicenseKey(ctx, client, validateLicenseKeyOptions{
+		KeygenConfig: opts.KeygenConfig,
+		LicenseKey:   opts.LicenseKey,
+		Fingerprint:  opts.Fingerprint,
+	})
+	if err != nil {
+		return
+	}
+	// Activate the same fingerprint is idempotent.
+	if licenseID.IsActivated {
+		return
+	}
+
+	return
+}
+
 func patchRequest(r *http.Request) {
 	// Keygen requires TLS.
 	// We tell it is.

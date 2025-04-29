@@ -222,6 +222,49 @@ var serveCmd = &cobra.Command{
 			WriteJSON(w, jsonResponseOK, http.StatusOK)
 		})
 
+		mux.HandleFunc("/v1/license/check", func(w http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+
+			ctx := r.Context()
+			logger := slogging.GetLogger(ctx)
+			deps := GetDependencies(ctx)
+
+			err := r.ParseForm()
+			if err != nil {
+				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+				return
+			}
+
+			licenseKey := r.FormValue("license_key")
+			fingerprint := r.FormValue("fingerprint")
+			if licenseKey == "" || fingerprint == "" {
+				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+				return
+			}
+
+			err = keygen.CheckLicense(ctx, deps.HTTPClient, keygen.CheckLicenseOptions{
+				KeygenConfig: deps.KeygenConfig,
+				LicenseKey:   licenseKey,
+				Fingerprint:  fingerprint,
+			})
+			if err != nil {
+				switch {
+				case errors.Is(err, keygen.ErrUnexpectedResponse):
+					slogging.Error(ctx, logger, "unexpected keygen response",
+						"error", err)
+					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+					return
+				case errors.Is(err, keygen.ErrLicenseKeyNotFound):
+					WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
+					return
+				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
+					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
+					return
+				}
+			}
+			WriteJSON(w, jsonResponseOK, http.StatusOK)
+		})
+
 		mux.HandleFunc("/v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {
 			defer r.Body.Close()
 
