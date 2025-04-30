@@ -78,3 +78,62 @@ fi
 		})
 	}
 }
+
+func TestRenderDownloadURL(t *testing.T) {
+	tests := []struct {
+		name                 string
+		downloadURLTemplate string
+		opts                 RenderDownloadURLOptions
+		expected             string
+	}{
+		{
+			name:                 "Darwin ARM64",
+			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}",
+			opts: RenderDownloadURLOptions{
+				Uname_s: "Darwin",
+				Uname_m: "arm64",
+			},
+			expected: "https://example.com/download/authgear-once-darwin-arm64",
+		},
+		{
+			name:                 "Linux AMD64",
+			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}",
+			opts: RenderDownloadURLOptions{
+				Uname_s: "Linux",
+				Uname_m: "x86_64",
+			},
+			expected: "https://example.com/download/authgear-once-linux-amd64",
+		},
+		{
+			name:                 "Whitespace and casing normalization",
+			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}",
+			opts: RenderDownloadURLOptions{
+				Uname_s: " DARWIN \n",
+				Uname_m: "  AArch64  ",
+			},
+			expected: "https://example.com/download/authgear-once-darwin-arm64",
+		},
+		{
+			name:                 "Template with additional variables",
+			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}?version=1.0.0",
+			opts: RenderDownloadURLOptions{
+				Uname_s: "Linux",
+				Uname_m: "ARM",
+			},
+			expected: "https://example.com/download/authgear-once-linux-arm64?version=1.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := RenderDownloadURL(tt.downloadURLTemplate, tt.opts)
+			if err != nil {
+				t.Fatalf("RenderDownloadURL() error = %v", err)
+			}
+
+			if result != tt.expected {
+				t.Errorf("RenderDownloadURL() output mismatch\nGot: %q\nWant: %q", result, tt.expected)
+			}
+		})
+	}
+}

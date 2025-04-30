@@ -3,6 +3,8 @@ package installationscript
 import (
 	"bytes"
 	texttemplate "text/template"
+
+	"github.com/authgear/authgear-once-license-server/pkg/uname"
 )
 
 var tmpl *texttemplate.Template
@@ -47,6 +49,30 @@ type RenderOptions struct {
 func Render(opts RenderOptions) (out string, err error) {
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, opts)
+	if err != nil {
+		return
+	}
+
+	out = buf.String()
+	return
+}
+
+type RenderDownloadURLOptions struct {
+	Uname_s string
+	Uname_m string
+}
+
+func RenderDownloadURL(downloadURLGoTemplate string, opts RenderDownloadURLOptions) (out string, err error) {
+	t, err := texttemplate.New("").Parse(downloadURLGoTemplate)
+	if err != nil {
+		return
+	}
+
+	opts.Uname_s = uname.NormalizeUnameS(opts.Uname_s)
+	opts.Uname_m = uname.NormalizeUnameM(opts.Uname_m)
+
+	var buf bytes.Buffer
+	err = t.Execute(&buf, opts)
 	if err != nil {
 		return
 	}
