@@ -428,7 +428,7 @@ func GetDependencies(ctx context.Context) Dependencies {
 
 func main() {
 	err := godotenv.Load()
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
 
