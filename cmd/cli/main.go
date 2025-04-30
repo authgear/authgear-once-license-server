@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/authgear/authgear-once-license-server/pkg/emailtemplate"
 	"github.com/authgear/authgear-once-license-server/pkg/httpmiddleware"
+	"github.com/authgear/authgear-once-license-server/pkg/installationscript"
 	"github.com/authgear/authgear-once-license-server/pkg/keygen"
 	"github.com/authgear/authgear-once-license-server/pkg/slogging"
 	"github.com/authgear/authgear-once-license-server/pkg/smtp"
@@ -47,8 +47,6 @@ const indexHTML = `<!DOCTYPE html>
 </body>
 </html>
 `
-
-var installationShellScript *texttemplate.Template
 
 var jsonResponseBadRequest = map[string]any{
 	"error": map[string]any{
@@ -81,32 +79,6 @@ var jsonResponseLicenseKeyExpired = map[string]any{
 }
 
 var jsonResponseOK = map[string]any{}
-
-func init() {
-	t, err := texttemplate.New("").Parse(`#!/bin/sh
-set -e
-
-echo "Installing the Authgear ONCE command......"
-echo "This script uses sudo, you will be prompted for authentication."
-sudo true
-
-download_url="{{ $.DownloadURL }}?uname_s=$(uname -s)&uname_m=$(uname -m)"
-tmp_path="$(mktemp)"
-curl -fsSL "$download_url" > "$tmp_path"
-sudo mv "$tmp_path" /usr/local/bin/authgear-once
-sudo chmod u+x /usr/local/bin/authgear-once
-
-if [ "$(uname -s)" = "Darwin" ]; then
-	/usr/local/bin/authgear-once setup "{{ $.LicenseKey }}"
-else
-	sudo /usr/local/bin/authgear-once setup "{{ $.LicenseKey }}"
-fi
-`)
-	if err != nil {
-		panic(err)
-	}
-	installationShellScript = t
-}
 
 var rootCmd = &cobra.Command{
 	Use: "authgear-once-license-server",
@@ -148,12 +120,11 @@ var serveCmd = &cobra.Command{
 
 				u := ConstructFullURL(r)
 
-				data := map[string]any{
-					"DownloadURL": u.String(),
-					"LicenseKey":  licenseKey,
-				}
-				var buf bytes.Buffer
-				err = installationShellScript.Execute(&buf, data)
+				script, err := installationscript.Render(installationscript.RenderOptions{
+					DownloadURL:   u.String(),
+					LicenseKey:    licenseKey,
+					ImageOverride: deps.AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE,
+				})
 				if err != nil {
 					slogging.Error(ctx, logger, "failed to render installation shell script",
 						"error", err)
@@ -163,9 +134,9 @@ var serveCmd = &cobra.Command{
 
 				w.Header().Set("Content-Type", "text/plain")
 				w.Header().Set("Cache-Control", "no-store")
-				w.Write(buf.Bytes())
+				w.Write([]byte(script))
 			default:
-				// Otherwise, we return 303 to download the binary.
+				// Otherwise, we return 303 to download the executable.
 				uname_s = uname.NormalizeUnameS(uname_s)
 				uname_m = uname.NormalizeUnameM(uname_m)
 				data := map[string]any{
@@ -173,7 +144,7 @@ var serveCmd = &cobra.Command{
 					"Uname_m": uname_m,
 				}
 				var buf strings.Builder
-				err = deps.AuthgearOnceDownloadURLGoTemplate.Execute(&buf, data)
+				err = deps.AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE.Execute(&buf, data)
 				if err != nil {
 					slogging.Error(ctx, logger, "failed to render download url",
 						"error", err)
@@ -418,24 +389,25 @@ type dependenciesKeyType struct{}
 var dependenciesKey = dependenciesKeyType{}
 
 type Dependencies struct {
-	HTTPClient                        *http.Client
-	StripeClient                      *client.API
-	SMTPDialer                        *gomail.Dialer
-	SMTPSender                        string
-	StripeCheckoutSessionSuccessURL   string
-	StripeCheckoutSessionCancelURL    string
-	StripeCheckoutSessionPriceID      string
-	StripeWebhookSigningSecret        string
-	PublicURLScheme                   string
-	AuthgearOnceDownloadURLGoTemplate *texttemplate.Template
-	KeygenConfig                      keygen.KeygenConfig
+	HTTPClient                                          *http.Client
+	StripeClient                                        *client.API
+	SMTPDialer                                          *gomail.Dialer
+	SMTPSender                                          string
+	StripeCheckoutSessionSuccessURL                     string
+	StripeCheckoutSessionCancelURL                      string
+	StripeCheckoutSessionPriceID                        string
+	StripeWebhookSigningSecret                          string
+	AUTHGEAR_ONCE_PUBLIC_URL_SCHEME                     string
+	AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE *texttemplate.Template
+	AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE           string
+	KeygenConfig                                        keygen.KeygenConfig
 }
 
 func ConstructFullURL(r *http.Request) *url.URL {
 	ctx := r.Context()
 	deps := GetDependencies(ctx)
 	scheme := "https"
-	if deps.PublicURLScheme == "http" {
+	if deps.AUTHGEAR_ONCE_PUBLIC_URL_SCHEME == "http" {
 		scheme = "http"
 	}
 	host := r.Host
@@ -491,22 +463,24 @@ func main() {
 		SMTPPassword: os.Getenv("AUTHGEAR_ONCE_SMTP_PASSWORD"),
 	})
 
-	authgearOnceDownloadURLGoTemplate, err := texttemplate.New("").Parse(os.Getenv("AUTHGEAR_ONCE_BINARY_DOWNLOAD_URL_GO_TEMPLATE"))
+	AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE, err := texttemplate.New("").Parse(os.Getenv("AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE"))
 	if err != nil {
 		panic(err)
 	}
+	AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE := os.Getenv("AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE")
 
 	dependencies := Dependencies{
-		HTTPClient:                        &http.Client{},
-		StripeClient:                      stripeClient,
-		SMTPDialer:                        smtpDialer,
-		SMTPSender:                        os.Getenv("AUTHGEAR_ONCE_SMTP_SENDER"),
-		StripeCheckoutSessionSuccessURL:   os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
-		StripeCheckoutSessionCancelURL:    os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
-		StripeCheckoutSessionPriceID:      os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_PRICE_ID"),
-		StripeWebhookSigningSecret:        os.Getenv("AUTHGEAR_ONCE_STRIPE_WEBHOOK_SIGNING_SECRET"),
-		PublicURLScheme:                   os.Getenv("AUTHGEAR_ONCE_PUBLIC_URL_SCHEME"),
-		AuthgearOnceDownloadURLGoTemplate: authgearOnceDownloadURLGoTemplate,
+		HTTPClient:                      &http.Client{},
+		StripeClient:                    stripeClient,
+		SMTPDialer:                      smtpDialer,
+		SMTPSender:                      os.Getenv("AUTHGEAR_ONCE_SMTP_SENDER"),
+		StripeCheckoutSessionSuccessURL: os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
+		StripeCheckoutSessionCancelURL:  os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
+		StripeCheckoutSessionPriceID:    os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_PRICE_ID"),
+		StripeWebhookSigningSecret:      os.Getenv("AUTHGEAR_ONCE_STRIPE_WEBHOOK_SIGNING_SECRET"),
+		AUTHGEAR_ONCE_PUBLIC_URL_SCHEME: os.Getenv("AUTHGEAR_ONCE_PUBLIC_URL_SCHEME"),
+		AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE: AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE,
+		AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE:           AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE,
 		KeygenConfig: keygen.KeygenConfig{
 			Endpoint:   os.Getenv("AUTHGEAR_ONCE_KEYGEN_ENDPOINT"),
 			AdminToken: os.Getenv("AUTHGEAR_ONCE_KEYGEN_ADMIN_TOKEN"),
