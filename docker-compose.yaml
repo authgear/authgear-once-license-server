@@ -15,6 +15,7 @@ services:
     volumes:
     - redis:/data
 
+  # keygen community edition does not really need a volume to run.
   keygen-web:
     image: keygen/api:v1.4.0
     command: "web"
@@ -22,19 +23,16 @@ services:
     - "3000:3000"
     env_file:
     - .env
-    volumes:
-    - keygen:/etc/keygen
     depends_on:
     - postgres
     - redis
 
+  # keygen community edition does not really need a volume to run.
   keygen-worker:
     image: keygen/api:v1.4.0
     command: "worker"
     env_file:
     - .env
-    volumes:
-    - keygen:/etc/keygen
     depends_on:
     - postgres
     - redis
@@ -42,4 +40,3 @@ services:
 volumes:
   postgres:
   redis:
-  keygen:
