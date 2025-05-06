@@ -25,8 +25,7 @@
       }
       ul li,
       ol li {
-        margin-block-end: 1em;
-        margin-block-start: 1em;
+        margin: 1em 0;
       }
       p {
         margin: 1rem 0;
