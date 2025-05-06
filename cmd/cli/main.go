@@ -69,13 +69,11 @@ var jsonResponseLicenseKeyAlreadyActivated = map[string]any{
 	},
 }
 
-var jsonResponseLicenseKeyExpired = map[string]any{
-	"error": map[string]any{
-		"code": "license_key_expired",
-	},
+func NewLicenseResponse(l *keygen.LicenseID) map[string]any {
+	return map[string]any{
+		"data": l,
+	}
 }
-
-var jsonResponseOK = map[string]any{}
 
 var rootCmd = &cobra.Command{
 	Use: "authgear-once-license-server",
@@ -168,30 +166,27 @@ var serveCmd = &cobra.Command{
 				return
 			}
 
-			err = keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.ActivateLicenseOptions{
+			licenseID, err := keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.ActivateLicenseOptions{
 				KeygenConfig: deps.KeygenConfig,
 				LicenseKey:   licenseKey,
 				Fingerprint:  fingerprint,
 			})
 			if err != nil {
 				switch {
-				case errors.Is(err, keygen.ErrUnexpectedResponse):
-					slogging.Error(ctx, logger, "unexpected keygen response",
-						"error", err)
-					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-					return
 				case errors.Is(err, keygen.ErrLicenseKeyNotFound):
 					WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
 					return
 				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
 					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
 					return
-				case errors.Is(err, keygen.ErrLicenseKeyExpired):
-					WriteJSON(w, jsonResponseLicenseKeyExpired, http.StatusForbidden)
+				default:
+					slogging.Error(ctx, logger, "unexpected error",
+						"error", err)
+					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
 					return
 				}
 			}
-			WriteJSON(w, jsonResponseOK, http.StatusOK)
+			WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
 		})
 
 		mux.HandleFunc("/v1/license/check", func(w http.ResponseWriter, r *http.Request) {
@@ -214,30 +209,27 @@ var serveCmd = &cobra.Command{
 				return
 			}
 
-			err = keygen.CheckLicense(ctx, deps.HTTPClient, keygen.CheckLicenseOptions{
+			licenseID, err := keygen.CheckLicense(ctx, deps.HTTPClient, keygen.CheckLicenseOptions{
 				KeygenConfig: deps.KeygenConfig,
 				LicenseKey:   licenseKey,
 				Fingerprint:  fingerprint,
 			})
 			if err != nil {
 				switch {
-				case errors.Is(err, keygen.ErrUnexpectedResponse):
-					slogging.Error(ctx, logger, "unexpected keygen response",
-						"error", err)
-					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-					return
 				case errors.Is(err, keygen.ErrLicenseKeyNotFound):
 					WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
 					return
 				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
 					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
 					return
-				case errors.Is(err, keygen.ErrLicenseKeyExpired):
-					WriteJSON(w, jsonResponseLicenseKeyExpired, http.StatusForbidden)
+				default:
+					slogging.Error(ctx, logger, "unexpected error",
+						"error", err)
+					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
 					return
 				}
 			}
-			WriteJSON(w, jsonResponseOK, http.StatusOK)
+			WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
 		})
 
 		mux.HandleFunc("/v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {

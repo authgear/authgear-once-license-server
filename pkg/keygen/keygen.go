@@ -7,15 +7,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
 var ErrUnexpectedResponse = errors.New("unexpected response")
 var ErrLicenseKeyNotFound = errors.New("license key not found")
 var ErrLicenseKeyAlreadyActivated = errors.New("license key already activated")
-var ErrLicenseKeyExpired = errors.New("license key expired")
 
 type KeygenResponseError struct {
 	DumpedResponse []byte
@@ -112,9 +113,12 @@ type validateLicenseKeyOptions struct {
 	Fingerprint  string
 }
 
+// LicenseID is an API object.
 type LicenseID struct {
-	ID          string
-	IsActivated bool
+	ID          string     `json:"-"`
+	ExpireAt    *time.Time `json:"expire_at"`
+	IsActivated bool       `json:"is_activated"`
+	IsExpired   bool       `json:"is_expired"`
 }
 
 // validateLicenseKey returns the following errors:
@@ -164,48 +168,73 @@ func validateLicenseKey(ctx context.Context, client *http.Client, opts validateL
 	}()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		var respBody map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&respBody)
-		if err != nil {
-			return
-		}
-
-		meta := respBody["meta"].(map[string]any)
-		meta_code := meta["code"].(string)
-
-		if meta_code == "NOT_FOUND" {
-			err = ErrLicenseKeyNotFound
-			return
-		} else {
-			status := respBody["data"].(map[string]any)["attributes"].(map[string]any)["status"].(string)
-			if status == "EXPIRED" {
-				err = ErrLicenseKeyExpired
-				return
-			}
-
-			switch meta_code {
-			case "FINGERPRINT_SCOPE_MISMATCH":
-				err = ErrLicenseKeyAlreadyActivated
-				return
-			case "EXPIRED":
-				err = ErrLicenseKeyExpired
-				return
-			case "NO_MACHINE", "VALID":
-				data, ok := respBody["data"].(map[string]any)
-				if !ok || data == nil {
-					err = ErrUnexpectedResponse
-					return
-				}
-				licenseID = &LicenseID{
-					ID:          data["id"].(string),
-					IsActivated: meta_code == "VALID",
-				}
-				return
-			}
-		}
+		return parseValidateLicenseKeyResponseBody(resp.Body)
 	}
 
 	err = ErrUnexpectedResponse
+	return
+}
+
+func parseValidateLicenseKeyResponseBody(r io.Reader) (licenseID *LicenseID, err error) {
+	var respBody map[string]any
+	err = json.NewDecoder(r).Decode(&respBody)
+	if err != nil {
+		return
+	}
+
+	meta := respBody["meta"].(map[string]any)
+	meta_code := meta["code"].(string)
+
+	if meta_code == "NOT_FOUND" {
+		err = ErrLicenseKeyNotFound
+		return
+	}
+
+	if meta_code == "FINGERPRINT_SCOPE_MISMATCH" {
+		err = ErrLicenseKeyAlreadyActivated
+		return
+	}
+
+	data, ok := respBody["data"].(map[string]any)
+	if !ok || data == nil {
+		err = ErrUnexpectedResponse
+		return
+	}
+	attributes, ok := data["attributes"].(map[string]any)
+	if !ok {
+		err = ErrUnexpectedResponse
+		return
+	}
+
+	licenseID = &LicenseID{
+		ID: data["id"].(string),
+	}
+
+	if expiry, ok := attributes["expiry"].(string); ok {
+		var expireAt time.Time
+		expireAt, err = time.Parse(time.RFC3339, expiry)
+		if err != nil {
+			err = errors.Join(err, ErrUnexpectedResponse)
+			return
+		}
+		licenseID.ExpireAt = &expireAt
+	}
+
+	switch meta_code {
+	case "VALID":
+		licenseID.IsActivated = true
+		licenseID.IsExpired = false
+	case "EXPIRED":
+		licenseID.IsActivated = true
+		licenseID.IsExpired = true
+	case "NO_MACHINE":
+		licenseID.IsActivated = false
+		licenseID.IsExpired = false
+	default:
+		err = ErrUnexpectedResponse
+		return
+	}
+
 	return
 }
 
@@ -421,10 +450,10 @@ type ActivateLicenseOptions struct {
 // - ErrUnexpectedResponse
 // - ErrLicenseKeyNotFound
 // - ErrLicenseKeyAlreadyActivated
-func ActivateLicense(ctx context.Context, client *http.Client, opts ActivateLicenseOptions) (err error) {
+func ActivateLicense(ctx context.Context, client *http.Client, opts ActivateLicenseOptions) (licenseID *LicenseID, err error) {
 	// We first try to validate the license key.
 	// If the license is activated, we can return early.
-	licenseID, err := validateLicenseKey(ctx, client, validateLicenseKeyOptions{
+	licenseID, err = validateLicenseKey(ctx, client, validateLicenseKeyOptions{
 		KeygenConfig: opts.KeygenConfig,
 		LicenseKey:   opts.LicenseKey,
 		Fingerprint:  opts.Fingerprint,
@@ -475,20 +504,12 @@ type CheckLicenseOptions struct {
 // - ErrUnexpectedResponse
 // - ErrLicenseKeyNotFound
 // - ErrLicenseKeyAlreadyActivated
-func CheckLicense(ctx context.Context, client *http.Client, opts CheckLicenseOptions) (err error) {
-	licenseID, err := validateLicenseKey(ctx, client, validateLicenseKeyOptions{
+func CheckLicense(ctx context.Context, client *http.Client, opts CheckLicenseOptions) (licenseID *LicenseID, err error) {
+	licenseID, err = validateLicenseKey(ctx, client, validateLicenseKeyOptions{
 		KeygenConfig: opts.KeygenConfig,
 		LicenseKey:   opts.LicenseKey,
 		Fingerprint:  opts.Fingerprint,
 	})
-	if err != nil {
-		return
-	}
-	// Activate the same fingerprint is idempotent.
-	if licenseID.IsActivated {
-		return
-	}
-
 	return
 }
 
