@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# distributionStrategy=LICENSED
+# https://keygen.sh/docs/api/products/#products-object-attrs-distributionStrategy
+# LICENSED is the default value.
+# It means the product required license to access.
+
 set -eux
 
 data=$(jq \
