@@ -81,13 +81,13 @@ fi
 
 func TestRenderDownloadURL(t *testing.T) {
 	tests := []struct {
-		name                 string
+		name                string
 		downloadURLTemplate string
-		opts                 RenderDownloadURLOptions
-		expected             string
+		opts                RenderDownloadURLOptions
+		expected            string
 	}{
 		{
-			name:                 "Darwin ARM64",
+			name:                "Darwin ARM64",
 			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}",
 			opts: RenderDownloadURLOptions{
 				Uname_s: "Darwin",
@@ -96,7 +96,7 @@ func TestRenderDownloadURL(t *testing.T) {
 			expected: "https://example.com/download/authgear-once-darwin-arm64",
 		},
 		{
-			name:                 "Linux AMD64",
+			name:                "Linux AMD64",
 			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}",
 			opts: RenderDownloadURLOptions{
 				Uname_s: "Linux",
@@ -105,7 +105,7 @@ func TestRenderDownloadURL(t *testing.T) {
 			expected: "https://example.com/download/authgear-once-linux-amd64",
 		},
 		{
-			name:                 "Whitespace and casing normalization",
+			name:                "Whitespace and casing normalization",
 			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}",
 			opts: RenderDownloadURLOptions{
 				Uname_s: " DARWIN \n",
@@ -114,7 +114,7 @@ func TestRenderDownloadURL(t *testing.T) {
 			expected: "https://example.com/download/authgear-once-darwin-arm64",
 		},
 		{
-			name:                 "Template with additional variables",
+			name:                "Template with additional variables",
 			downloadURLTemplate: "https://example.com/download/authgear-once-{{.Uname_s}}-{{.Uname_m}}?version=1.0.0",
 			opts: RenderDownloadURLOptions{
 				Uname_s: "Linux",
