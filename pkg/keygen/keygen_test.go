@@ -260,10 +260,12 @@ func TestParseValidateLicenseKeyResponseBody(t *testing.T) {
     }
 }`,
 			expectedLicense: &LicenseID{
-				ID:          "9d1e8df9-229f-4b5d-a207-945dcfa1e996",
-				ExpireAt:    timeDate(2025, 5, 29, 7, 2, 9, int(922*time.Millisecond), time.UTC),
-				IsExpired:   false,
-				IsActivated: true,
+				ID:                      "9d1e8df9-229f-4b5d-a207-945dcfa1e996",
+				ExpireAt:                timeDate(2025, 5, 29, 7, 2, 9, int(922*time.Millisecond), time.UTC),
+				IsExpired:               false,
+				IsActivated:             true,
+				StripeCustomerID:        "cus_SC8kvfXLrODZlq",
+				StripeCheckoutSessionID: "cs_test_a12FEQu82usfxGayomGKYubHZTA6NwjnFwdgTg1rIYKNdKh421wEQGhVXn",
 			},
 			expectedError: nil,
 		},
@@ -388,10 +390,12 @@ func TestParseValidateLicenseKeyResponseBody(t *testing.T) {
     }
 }`,
 			expectedLicense: &LicenseID{
-				ID:          "9d1e8df9-229f-4b5d-a207-945dcfa1e996",
-				ExpireAt:    timeDate(2025, 4, 29, 7, 2, 9, int(922*time.Millisecond), time.UTC),
-				IsActivated: true,
-				IsExpired:   true,
+				ID:                      "9d1e8df9-229f-4b5d-a207-945dcfa1e996",
+				ExpireAt:                timeDate(2025, 4, 29, 7, 2, 9, int(922*time.Millisecond), time.UTC),
+				IsActivated:             true,
+				IsExpired:               true,
+				StripeCustomerID:        "cus_SC8kvfXLrODZlq",
+				StripeCheckoutSessionID: "cs_test_a12FEQu82usfxGayomGKYubHZTA6NwjnFwdgTg1rIYKNdKh421wEQGhVXn",
 			},
 			expectedError: nil,
 		},

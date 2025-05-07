@@ -119,6 +119,10 @@ type LicenseID struct {
 	ExpireAt    *time.Time `json:"expire_at"`
 	IsActivated bool       `json:"is_activated"`
 	IsExpired   bool       `json:"is_expired"`
+
+	StripeCheckoutSessionID string  `json:"-"`
+	StripeCustomerID        string  `json:"-"`
+	LicenseeEmail           *string `json:"licensee_email"`
 }
 
 // validateLicenseKey returns the following errors:
@@ -218,6 +222,14 @@ func parseValidateLicenseKeyResponseBody(r io.Reader) (licenseID *LicenseID, err
 			return
 		}
 		licenseID.ExpireAt = &expireAt
+	}
+	if metadata, ok := attributes["metadata"].(map[string]any); ok {
+		if stripeCheckoutSessionID, ok := metadata["stripeCheckoutSessionId"].(string); ok {
+			licenseID.StripeCheckoutSessionID = stripeCheckoutSessionID
+		}
+		if stripeCustomerID, ok := metadata["stripeCustomerId"].(string); ok {
+			licenseID.StripeCustomerID = stripeCustomerID
+		}
 	}
 
 	switch meta_code {
