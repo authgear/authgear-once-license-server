@@ -87,286 +87,12 @@ var serveCmd = &cobra.Command{
 		cors := httpmiddleware.CORSMiddleware(os.Getenv("AUTHGEAR_ONCE_CORS_ALLOWED_ORIGINS"))
 		maxbytes := httpmiddleware.MaxBytesMiddleware(100 * 1000) // 100KB
 
-		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(indexHTML))
-		})
-
-		mux.HandleFunc("GET /install/{license_key}", func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			deps := GetDependencies(ctx)
-			logger := slogging.GetLogger(ctx)
-
-			err := r.ParseForm()
-			if err != nil {
-				http.Error(w, "failed to parse form", http.StatusBadRequest)
-				return
-			}
-
-			licenseKey := r.PathValue("license_key")
-			uname_s := r.FormValue("uname_s")
-			uname_m := r.FormValue("uname_m")
-
-			switch {
-			case uname_s == "" || uname_m == "":
-				// uname_s or uname_m is unspecified.
-				// This is the case of the link in the email.
-				// In this case, we return a shell script that is supposed to be run by a oneliner.
-
-				u := ConstructFullURL(r)
-
-				script, err := installationscript.Render(installationscript.RenderOptions{
-					DownloadURL:   u.String(),
-					LicenseKey:    licenseKey,
-					ImageOverride: deps.AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE,
-				})
-				if err != nil {
-					slogging.Error(ctx, logger, "failed to render installation shell script",
-						"error", err)
-					http.Error(w, "failed to render installation shell script", http.StatusInternalServerError)
-					return
-				}
-
-				w.Header().Set("Content-Type", "text/plain")
-				w.Header().Set("Cache-Control", "no-store")
-				w.Write([]byte(script))
-			default:
-				downloadURL, err := installationscript.RenderDownloadURL(deps.AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE, installationscript.RenderDownloadURLOptions{
-					Uname_s: uname_s,
-					Uname_m: uname_m,
-				})
-				if err != nil {
-					slogging.Error(ctx, logger, "failed to render download url",
-						"error", err)
-					http.Error(w, "failed to render download url", http.StatusInternalServerError)
-					return
-				}
-
-				http.Redirect(w, r, downloadURL, http.StatusSeeOther)
-			}
-		})
-
-		mux.HandleFunc("/v1/license/activate", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
-
-			ctx := r.Context()
-			logger := slogging.GetLogger(ctx)
-			deps := GetDependencies(ctx)
-
-			err := r.ParseForm()
-			if err != nil {
-				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-				return
-			}
-
-			licenseKey := r.FormValue("license_key")
-			fingerprint := r.FormValue("fingerprint")
-			if licenseKey == "" || fingerprint == "" {
-				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-				return
-			}
-
-			licenseID, err := keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.ActivateLicenseOptions{
-				KeygenConfig: deps.KeygenConfig,
-				LicenseKey:   licenseKey,
-				Fingerprint:  fingerprint,
-			})
-			if err != nil {
-				switch {
-				case errors.Is(err, keygen.ErrLicenseKeyNotFound):
-					WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
-					return
-				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
-					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
-					return
-				default:
-					slogging.Error(ctx, logger, "unexpected error",
-						"error", err)
-					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-					return
-				}
-			}
-			if licenseID.StripeCustomerID != "" {
-				customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
-				if err != nil {
-					slogging.Error(ctx, logger, "unexpected error",
-						"error", err)
-					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-					return
-				}
-
-				licenseID.LicenseeEmail = &customer.Email
-			}
-
-			WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
-		})
-
-		mux.HandleFunc("/v1/license/check", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
-
-			ctx := r.Context()
-			logger := slogging.GetLogger(ctx)
-			deps := GetDependencies(ctx)
-
-			err := r.ParseForm()
-			if err != nil {
-				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-				return
-			}
-
-			licenseKey := r.FormValue("license_key")
-			fingerprint := r.FormValue("fingerprint")
-			if licenseKey == "" || fingerprint == "" {
-				WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-				return
-			}
-
-			licenseID, err := keygen.CheckLicense(ctx, deps.HTTPClient, keygen.CheckLicenseOptions{
-				KeygenConfig: deps.KeygenConfig,
-				LicenseKey:   licenseKey,
-				Fingerprint:  fingerprint,
-			})
-			if err != nil {
-				switch {
-				case errors.Is(err, keygen.ErrLicenseKeyNotFound):
-					WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
-					return
-				case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
-					WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
-					return
-				default:
-					slogging.Error(ctx, logger, "unexpected error",
-						"error", err)
-					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-					return
-				}
-			}
-			if licenseID.StripeCustomerID != "" {
-				customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
-				if err != nil {
-					slogging.Error(ctx, logger, "unexpected error",
-						"error", err)
-					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-					return
-				}
-
-				licenseID.LicenseeEmail = &customer.Email
-			}
-
-			WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
-		})
-
-		mux.HandleFunc("/v1/stripe/checkout", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
-
-			ctx := r.Context()
-			logger := slogging.GetLogger(ctx)
-			deps := GetDependencies(ctx)
-			stripeClient := deps.StripeClient
-
-			checkoutSession, err := pkgstripe.NewCheckoutSession(ctx, stripeClient, &pkgstripe.CheckoutSessionParams{
-				SuccessURL: deps.StripeCheckoutSessionSuccessURL,
-				CancelURL:  deps.StripeCheckoutSessionCancelURL,
-				PriceID:    deps.StripeCheckoutSessionPriceID,
-			})
-			if err != nil {
-				slogging.Error(ctx, logger, "failed to create checkout session",
-					"error", err)
-				http.Error(w, "failed to create checkout session", http.StatusInternalServerError)
-				return
-			}
-
-			http.Redirect(w, r, checkoutSession.URL, http.StatusSeeOther)
-		})
-
-		// The API version must be 2025-03-31.basil
-		mux.HandleFunc("/v1/stripe/webhook", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
-
-			ctx := r.Context()
-			logger := slogging.GetLogger(ctx)
-			deps := GetDependencies(ctx)
-
-			e, err := pkgstripe.ConstructEvent(r, deps.StripeWebhookSigningSecret)
-			if err != nil {
-				slogging.Error(ctx, logger, "failed to construct webhook event",
-					"error", err)
-				if !pkgstripe.IsWebhookClientError(err) {
-					http.Error(w, "failed to construct webhook event", http.StatusInternalServerError)
-				} else {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-				}
-				return
-			}
-
-			switch e.Type {
-			case stripe.EventTypeCheckoutSessionCompleted:
-				b, err := json.Marshal(e)
-				if err != nil {
-					panic(err)
-				}
-				logger = logger.With("stripe_event_json_base64url", base64.RawURLEncoding.EncodeToString(b))
-
-				checkoutSessionID, ok := pkgstripe.GetCheckoutSessionID(e)
-				if !ok {
-					slogging.Error(ctx, logger, "checkout session ID not found")
-					http.Error(w, "checkout session ID not found", http.StatusInternalServerError)
-					return
-				}
-
-				customerID, ok := pkgstripe.GetCustomerID(e)
-				if !ok {
-					slogging.Error(ctx, logger, "customer id not found")
-					http.Error(w, "customer id not found", http.StatusInternalServerError)
-					return
-				}
-
-				email, ok := pkgstripe.GetCustomerEmail(e)
-				if !ok {
-					slogging.Error(ctx, logger, "customer email not found")
-					http.Error(w, "customer email not found", http.StatusInternalServerError)
-					return
-				}
-
-				licenseKey, err := keygen.CreateLicenseKey(ctx, deps.HTTPClient, keygen.CreateLicenseKeyOptions{
-					KeygenConfig:            deps.KeygenConfig,
-					StripeCheckoutSessionID: checkoutSessionID,
-					StripeCustomerID:        customerID,
-				})
-				if err != nil {
-					slogging.Error(ctx, logger, "failed to create license key",
-						"error", err)
-					http.Error(w, "failed to create license key", http.StatusInternalServerError)
-					return
-				}
-
-				u := ConstructFullURL(r)
-				u.Path = fmt.Sprintf("/install/%v", licenseKey)
-
-				htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
-					InstallationOneliner: fmt.Sprintf(`/bin/sh -c "$(curl -fsSL %v)"`, u.String()),
-				})
-
-				opts := smtp.EmailOptions{
-					Sender:   deps.SMTPSender,
-					Subject:  "Installing Authgear once",
-					HTMLBody: htmlBody,
-					To:       email,
-				}
-
-				err = smtp.SendEmail(deps.SMTPDialer, opts)
-				if err != nil {
-					slogging.Error(ctx, logger, "failed to send email",
-						"error", err)
-					http.Error(w, "failed to send email", http.StatusInternalServerError)
-				} else {
-					slogging.Info(ctx, logger, "sent installation to checkout session",
-						"checkout_session_id", checkoutSessionID,
-						"customer_id", customerID)
-					// Return 200 implicitly.
-				}
-			}
-		})
+		mux.HandleFunc("GET /{$}", Handler_root)
+		mux.HandleFunc("GET /install/{license_key}", Handler_install)
+		mux.HandleFunc("/v1/license/activate", Handler_v1_license_activate)
+		mux.HandleFunc("/v1/license/check", Handler_v1_license_check)
+		mux.HandleFunc("/v1/stripe/checkout", Handler_v1_stripe_checkout)
+		mux.HandleFunc("/v1/stripe/webhook", Handler_v1_stripe_webhook)
 
 		ctx := cmd.Context()
 		logger := slogging.GetLogger(ctx)
@@ -440,6 +166,287 @@ func WriteJSON(w http.ResponseWriter, jsonBody any, statusCode int) {
 
 func GetDependencies(ctx context.Context) Dependencies {
 	return ctx.Value(dependenciesKey).(Dependencies)
+}
+
+func Handler_root(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(indexHTML))
+}
+
+func Handler_install(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	deps := GetDependencies(ctx)
+	logger := slogging.GetLogger(ctx)
+
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	licenseKey := r.PathValue("license_key")
+	uname_s := r.FormValue("uname_s")
+	uname_m := r.FormValue("uname_m")
+
+	switch {
+	case uname_s == "" || uname_m == "":
+		// uname_s or uname_m is unspecified.
+		// This is the case of the link in the email.
+		// In this case, we return a shell script that is supposed to be run by a oneliner.
+
+		u := ConstructFullURL(r)
+
+		script, err := installationscript.Render(installationscript.RenderOptions{
+			DownloadURL:   u.String(),
+			LicenseKey:    licenseKey,
+			ImageOverride: deps.AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE,
+		})
+		if err != nil {
+			slogging.Error(ctx, logger, "failed to render installation shell script",
+				"error", err)
+			http.Error(w, "failed to render installation shell script", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Write([]byte(script))
+	default:
+		downloadURL, err := installationscript.RenderDownloadURL(deps.AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE, installationscript.RenderDownloadURLOptions{
+			Uname_s: uname_s,
+			Uname_m: uname_m,
+		})
+		if err != nil {
+			slogging.Error(ctx, logger, "failed to render download url",
+				"error", err)
+			http.Error(w, "failed to render download url", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, downloadURL, http.StatusSeeOther)
+	}
+}
+
+func Handler_v1_license_activate(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	ctx := r.Context()
+	logger := slogging.GetLogger(ctx)
+	deps := GetDependencies(ctx)
+
+	err := r.ParseForm()
+	if err != nil {
+		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+		return
+	}
+
+	licenseKey := r.FormValue("license_key")
+	fingerprint := r.FormValue("fingerprint")
+	if licenseKey == "" || fingerprint == "" {
+		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+		return
+	}
+
+	licenseID, err := keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.ActivateLicenseOptions{
+		KeygenConfig: deps.KeygenConfig,
+		LicenseKey:   licenseKey,
+		Fingerprint:  fingerprint,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, keygen.ErrLicenseKeyNotFound):
+			WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
+			return
+		case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
+			WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
+			return
+		default:
+			slogging.Error(ctx, logger, "unexpected error",
+				"error", err)
+			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+			return
+		}
+	}
+	if licenseID.StripeCustomerID != "" {
+		customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+		if err != nil {
+			slogging.Error(ctx, logger, "unexpected error",
+				"error", err)
+			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+			return
+		}
+
+		licenseID.LicenseeEmail = &customer.Email
+	}
+
+	WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
+}
+
+func Handler_v1_license_check(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	ctx := r.Context()
+	logger := slogging.GetLogger(ctx)
+	deps := GetDependencies(ctx)
+
+	err := r.ParseForm()
+	if err != nil {
+		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+		return
+	}
+
+	licenseKey := r.FormValue("license_key")
+	fingerprint := r.FormValue("fingerprint")
+	if licenseKey == "" || fingerprint == "" {
+		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
+		return
+	}
+
+	licenseID, err := keygen.CheckLicense(ctx, deps.HTTPClient, keygen.CheckLicenseOptions{
+		KeygenConfig: deps.KeygenConfig,
+		LicenseKey:   licenseKey,
+		Fingerprint:  fingerprint,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, keygen.ErrLicenseKeyNotFound):
+			WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
+			return
+		case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
+			WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
+			return
+		default:
+			slogging.Error(ctx, logger, "unexpected error",
+				"error", err)
+			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+			return
+		}
+	}
+	if licenseID.StripeCustomerID != "" {
+		customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+		if err != nil {
+			slogging.Error(ctx, logger, "unexpected error",
+				"error", err)
+			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+			return
+		}
+
+		licenseID.LicenseeEmail = &customer.Email
+	}
+
+	WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
+}
+
+func Handler_v1_stripe_checkout(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	ctx := r.Context()
+	logger := slogging.GetLogger(ctx)
+	deps := GetDependencies(ctx)
+	stripeClient := deps.StripeClient
+
+	checkoutSession, err := pkgstripe.NewCheckoutSession(ctx, stripeClient, &pkgstripe.CheckoutSessionParams{
+		SuccessURL: deps.StripeCheckoutSessionSuccessURL,
+		CancelURL:  deps.StripeCheckoutSessionCancelURL,
+		PriceID:    deps.StripeCheckoutSessionPriceID,
+	})
+	if err != nil {
+		slogging.Error(ctx, logger, "failed to create checkout session",
+			"error", err)
+		http.Error(w, "failed to create checkout session", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, checkoutSession.URL, http.StatusSeeOther)
+}
+
+func Handler_v1_stripe_webhook(w http.ResponseWriter, r *http.Request) {
+	// The API version must be 2025-03-31.basil
+	defer r.Body.Close()
+
+	ctx := r.Context()
+	logger := slogging.GetLogger(ctx)
+	deps := GetDependencies(ctx)
+
+	e, err := pkgstripe.ConstructEvent(r, deps.StripeWebhookSigningSecret)
+	if err != nil {
+		slogging.Error(ctx, logger, "failed to construct webhook event",
+			"error", err)
+		if !pkgstripe.IsWebhookClientError(err) {
+			http.Error(w, "failed to construct webhook event", http.StatusInternalServerError)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	switch e.Type {
+	case stripe.EventTypeCheckoutSessionCompleted:
+		b, err := json.Marshal(e)
+		if err != nil {
+			panic(err)
+		}
+		logger = logger.With("stripe_event_json_base64url", base64.RawURLEncoding.EncodeToString(b))
+
+		checkoutSessionID, ok := pkgstripe.GetCheckoutSessionID(e)
+		if !ok {
+			slogging.Error(ctx, logger, "checkout session ID not found")
+			http.Error(w, "checkout session ID not found", http.StatusInternalServerError)
+			return
+		}
+
+		customerID, ok := pkgstripe.GetCustomerID(e)
+		if !ok {
+			slogging.Error(ctx, logger, "customer id not found")
+			http.Error(w, "customer id not found", http.StatusInternalServerError)
+			return
+		}
+
+		email, ok := pkgstripe.GetCustomerEmail(e)
+		if !ok {
+			slogging.Error(ctx, logger, "customer email not found")
+			http.Error(w, "customer email not found", http.StatusInternalServerError)
+			return
+		}
+
+		licenseKey, err := keygen.CreateLicenseKey(ctx, deps.HTTPClient, keygen.CreateLicenseKeyOptions{
+			KeygenConfig:            deps.KeygenConfig,
+			StripeCheckoutSessionID: checkoutSessionID,
+			StripeCustomerID:        customerID,
+		})
+		if err != nil {
+			slogging.Error(ctx, logger, "failed to create license key",
+				"error", err)
+			http.Error(w, "failed to create license key", http.StatusInternalServerError)
+			return
+		}
+
+		u := ConstructFullURL(r)
+		u.Path = fmt.Sprintf("/install/%v", licenseKey)
+
+		htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
+			InstallationOneliner: fmt.Sprintf(`/bin/sh -c "$(curl -fsSL %v)"`, u.String()),
+		})
+
+		opts := smtp.EmailOptions{
+			Sender:   deps.SMTPSender,
+			Subject:  "Installing Authgear once",
+			HTMLBody: htmlBody,
+			To:       email,
+		}
+
+		err = smtp.SendEmail(deps.SMTPDialer, opts)
+		if err != nil {
+			slogging.Error(ctx, logger, "failed to send email",
+				"error", err)
+			http.Error(w, "failed to send email", http.StatusInternalServerError)
+		} else {
+			slogging.Info(ctx, logger, "sent installation to checkout session",
+				"checkout_session_id", checkoutSessionID,
+				"customer_id", customerID)
+			// Return 200 implicitly.
+		}
+	}
 }
 
 func main() {
