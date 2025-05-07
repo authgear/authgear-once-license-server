@@ -89,8 +89,8 @@ var serveCmd = &cobra.Command{
 
 		mux.HandleFunc("GET /{$}", Handler_root)
 		mux.HandleFunc("GET /install/{license_key}", Handler_install)
-		mux.HandleFunc("/v1/license/activate", Handler_v1_license_activate)
-		mux.HandleFunc("/v1/license/check", Handler_v1_license_check)
+		mux.HandleFunc("/v1/license/activate", MakeHandler_v1_license(keygen.ActivateLicense))
+		mux.HandleFunc("/v1/license/check", MakeHandler_v1_license(keygen.CheckLicense))
 		mux.HandleFunc("/v1/stripe/checkout", Handler_v1_stripe_checkout)
 		mux.HandleFunc("/v1/stripe/webhook", Handler_v1_stripe_webhook)
 
@@ -227,114 +227,61 @@ func Handler_install(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Handler_v1_license_activate(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+func MakeHandler_v1_license(f func(ctx context.Context, httpClient *http.Client, opts keygen.LicenseOptions) (*keygen.LicenseID, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
 
-	ctx := r.Context()
-	logger := slogging.GetLogger(ctx)
-	deps := GetDependencies(ctx)
+		ctx := r.Context()
+		logger := slogging.GetLogger(ctx)
+		deps := GetDependencies(ctx)
 
-	err := r.ParseForm()
-	if err != nil {
-		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-		return
-	}
-
-	licenseKey := r.FormValue("license_key")
-	fingerprint := r.FormValue("fingerprint")
-	if licenseKey == "" || fingerprint == "" {
-		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-		return
-	}
-
-	licenseID, err := keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.LicenseOptions{
-		KeygenConfig: deps.KeygenConfig,
-		LicenseKey:   licenseKey,
-		Fingerprint:  fingerprint,
-	})
-	if err != nil {
-		switch {
-		case errors.Is(err, keygen.ErrLicenseKeyNotFound):
-			WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
-			return
-		case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
-			WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
-			return
-		default:
-			slogging.Error(ctx, logger, "unexpected error",
-				"error", err)
-			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-			return
-		}
-	}
-	if licenseID.StripeCustomerID != "" {
-		customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+		err := r.ParseForm()
 		if err != nil {
-			slogging.Error(ctx, logger, "unexpected error",
-				"error", err)
-			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+			WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
 			return
 		}
 
-		licenseID.LicenseeEmail = &customer.Email
-	}
-
-	WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
-}
-
-func Handler_v1_license_check(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	ctx := r.Context()
-	logger := slogging.GetLogger(ctx)
-	deps := GetDependencies(ctx)
-
-	err := r.ParseForm()
-	if err != nil {
-		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-		return
-	}
-
-	licenseKey := r.FormValue("license_key")
-	fingerprint := r.FormValue("fingerprint")
-	if licenseKey == "" || fingerprint == "" {
-		WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
-		return
-	}
-
-	licenseID, err := keygen.CheckLicense(ctx, deps.HTTPClient, keygen.LicenseOptions{
-		KeygenConfig: deps.KeygenConfig,
-		LicenseKey:   licenseKey,
-		Fingerprint:  fingerprint,
-	})
-	if err != nil {
-		switch {
-		case errors.Is(err, keygen.ErrLicenseKeyNotFound):
-			WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
-			return
-		case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
-			WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
-			return
-		default:
-			slogging.Error(ctx, logger, "unexpected error",
-				"error", err)
-			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+		licenseKey := r.FormValue("license_key")
+		fingerprint := r.FormValue("fingerprint")
+		if licenseKey == "" || fingerprint == "" {
+			WriteJSON(w, jsonResponseBadRequest, http.StatusBadRequest)
 			return
 		}
-	}
-	if licenseID.StripeCustomerID != "" {
-		customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+
+		licenseID, err := f(ctx, deps.HTTPClient, keygen.LicenseOptions{
+			KeygenConfig: deps.KeygenConfig,
+			LicenseKey:   licenseKey,
+			Fingerprint:  fingerprint,
+		})
 		if err != nil {
-			slogging.Error(ctx, logger, "unexpected error",
-				"error", err)
-			WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
-			return
+			switch {
+			case errors.Is(err, keygen.ErrLicenseKeyNotFound):
+				WriteJSON(w, jsonResponseLicenseKeyNotFound, http.StatusNotFound)
+				return
+			case errors.Is(err, keygen.ErrLicenseKeyAlreadyActivated):
+				WriteJSON(w, jsonResponseLicenseKeyAlreadyActivated, http.StatusForbidden)
+				return
+			default:
+				slogging.Error(ctx, logger, "unexpected error",
+					"error", err)
+				WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+				return
+			}
+		}
+		if licenseID.StripeCustomerID != "" {
+			customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+			if err != nil {
+				slogging.Error(ctx, logger, "unexpected error",
+					"error", err)
+				WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+				return
+			}
+
+			licenseID.LicenseeEmail = &customer.Email
 		}
 
-		licenseID.LicenseeEmail = &customer.Email
+		WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
 	}
-
-	WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
 }
 
 func Handler_v1_stripe_checkout(w http.ResponseWriter, r *http.Request) {
