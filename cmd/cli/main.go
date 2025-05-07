@@ -186,6 +186,18 @@ var serveCmd = &cobra.Command{
 					return
 				}
 			}
+			if licenseID.StripeCustomerID != "" {
+				customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+				if err != nil {
+					slogging.Error(ctx, logger, "unexpected error",
+						"error", err)
+					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+					return
+				}
+
+				licenseID.LicenseeEmail = &customer.Email
+			}
+
 			WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
 		})
 
@@ -229,6 +241,18 @@ var serveCmd = &cobra.Command{
 					return
 				}
 			}
+			if licenseID.StripeCustomerID != "" {
+				customer, err := pkgstripe.GetCustomer(ctx, deps.StripeClient, licenseID.StripeCustomerID)
+				if err != nil {
+					slogging.Error(ctx, logger, "unexpected error",
+						"error", err)
+					WriteJSON(w, jsonResponseInternalServerError, http.StatusInternalServerError)
+					return
+				}
+
+				licenseID.LicenseeEmail = &customer.Email
+			}
+
 			WriteJSON(w, NewLicenseResponse(licenseID), http.StatusOK)
 		})
 
