@@ -452,7 +452,7 @@ func createMachine(ctx context.Context, client *http.Client, opts createMachineO
 	return
 }
 
-type ActivateLicenseOptions struct {
+type LicenseOptions struct {
 	KeygenConfig KeygenConfig
 	LicenseKey   string
 	Fingerprint  string
@@ -462,7 +462,7 @@ type ActivateLicenseOptions struct {
 // - ErrUnexpectedResponse
 // - ErrLicenseKeyNotFound
 // - ErrLicenseKeyAlreadyActivated
-func ActivateLicense(ctx context.Context, client *http.Client, opts ActivateLicenseOptions) (licenseID *LicenseID, err error) {
+func ActivateLicense(ctx context.Context, client *http.Client, opts LicenseOptions) (licenseID *LicenseID, err error) {
 	// We first try to validate the license key.
 	// If the license is activated, we can return early.
 	licenseID, err = validateLicenseKey(ctx, client, validateLicenseKeyOptions{
@@ -506,17 +506,11 @@ func ActivateLicense(ctx context.Context, client *http.Client, opts ActivateLice
 	return
 }
 
-type CheckLicenseOptions struct {
-	KeygenConfig KeygenConfig
-	LicenseKey   string
-	Fingerprint  string
-}
-
 // CheckLicense returns the following errors:
 // - ErrUnexpectedResponse
 // - ErrLicenseKeyNotFound
 // - ErrLicenseKeyAlreadyActivated
-func CheckLicense(ctx context.Context, client *http.Client, opts CheckLicenseOptions) (licenseID *LicenseID, err error) {
+func CheckLicense(ctx context.Context, client *http.Client, opts LicenseOptions) (licenseID *LicenseID, err error) {
 	licenseID, err = validateLicenseKey(ctx, client, validateLicenseKeyOptions{
 		KeygenConfig: opts.KeygenConfig,
 		LicenseKey:   opts.LicenseKey,

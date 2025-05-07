@@ -247,7 +247,7 @@ func Handler_v1_license_activate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	licenseID, err := keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.ActivateLicenseOptions{
+	licenseID, err := keygen.ActivateLicense(ctx, deps.HTTPClient, keygen.LicenseOptions{
 		KeygenConfig: deps.KeygenConfig,
 		LicenseKey:   licenseKey,
 		Fingerprint:  fingerprint,
@@ -302,7 +302,7 @@ func Handler_v1_license_check(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	licenseID, err := keygen.CheckLicense(ctx, deps.HTTPClient, keygen.CheckLicenseOptions{
+	licenseID, err := keygen.CheckLicense(ctx, deps.HTTPClient, keygen.LicenseOptions{
 		KeygenConfig: deps.KeygenConfig,
 		LicenseKey:   licenseKey,
 		Fingerprint:  fingerprint,
