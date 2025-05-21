@@ -153,7 +153,7 @@
                           <p>Follow these steps to get Authgear running:</p>
                           <ol class="list-number">
                             <li>
-                              <p><strong>Choose a machine to host Authgear</strong>, for example cloud services like Digital Ocean, Vultr, fly.io, zeabur.com.</p>
+                              <p><strong>Choose a machine to host Authgear</strong>, for example cloud services like Vultr, AWS</p>
                               <ol class="list-alpha">
                                 <li>Install Docker on the machine.</li>
                               </ol>
