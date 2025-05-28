@@ -57,16 +57,13 @@
           <p>Before you begin, you will need a few things:</p>
           <ul>
             <li>A domain name</li>
-            <li>A web server with Docker installed</li>
+            <li>A VM/computer with Docker installed</li>
           </ul>
 
           <p>Follow these steps to get Authgear running:</p>
           <ol class="list-number">
             <li>
-              <p><strong>Choose a machine to host Authgear</strong>, for example cloud services like Vultr, AWS</p>
-              <ol class="list-alpha">
-                <li>Install Docker on the machine.</li>
-              </ol>
+              <p><strong>Choose a machine to host Authgear</strong>, for example cloud services like <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-vultr">Vultr</a>, <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-amazon-web-services-aws">AWS</a>, or <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-a-vm">any Linux machine</a>.</p>
             </li>
             <li>
               <p><strong>Add the following DNS records for your domain</strong> and point them to the IP of the machine.</p>
@@ -102,14 +99,14 @@
               </table>
             </li>
             <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
-            <li><strong>Install Docker on the machine.</strong> Visit <a href="https://docs.docker.com/get-started/get-docker/">https://docs.docker.com/get-started/get-docker/</a> for instructions.</li>
+            <li><strong>Install Docker on the machine.</strong> Visit <a target="_blank" href="https://docs.docker.com/get-started/get-docker/">https://docs.docker.com/get-started/get-docker/</a> for instructions.</li>
             <li><strong>Run the following command in the terminal</strong></li>
           </ol>
 
           <pre>{{ $.InstallationOneliner }}</pre>
 
           <p>
-            The personalized command above contains your unique license key. DO NO share this command on public forums, websites, or repositories as it's tied to the license you purchased.
+            The personalized command above contains your unique license key. <strong>DO NOT share this command on public forums, websites, or repositories</strong> as it's tied to the license you purchased.
           </p>
 
           <p>
@@ -125,9 +122,9 @@
             We're excited to see what you build with Authgear! Here's how to get help if needed:
           </p>
           <ul>
-            <li>Documentation: <a href="https://docs.authgear.com">docs.authgear.com</a></li>
-            <li>Community: Join our <a href="https://discord.gg/Kdn5vcYwAS">Discord community</a> to share your project and connect with other developers</li>
-            <li>Email: <a href="mailto:once@authgear.com">once@authgear.com</a></li>
+            <li>Documentation: <a target="_blank" href="https://docs.authgear.com">docs.authgear.com</a></li>
+            <li>Community: Join our <a target="_blank" href="https://discord.gg/Kdn5vcYwAS">Discord community</a> to share your project and connect with other developers</li>
+            <li>Email: <a target="_blank" href="mailto:once@authgear.com">once@authgear.com</a></li>
           </ul>
 
           <p>Happy building!</p>
