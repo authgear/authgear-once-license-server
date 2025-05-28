@@ -20,6 +20,9 @@ func NewCheckoutSession(ctx context.Context, client *client.API, params *Checkou
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
 		// Always create a customer so that we can get a customer_id back.
 		CustomerCreation: stripe.String(string(stripe.CheckoutSessionCustomerCreationAlways)),
+		// Allow the use of promotion codes.
+		// https://linear.app/authgear/issue/DEV-2756/allow-promo-codes-coupon-to-be-used-in-once
+		AllowPromotionCodes: stripe.Bool(true),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(params.PriceID),
