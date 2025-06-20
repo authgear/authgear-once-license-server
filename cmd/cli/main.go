@@ -129,6 +129,7 @@ type Dependencies struct {
 	StripeCheckoutSessionCancelURL                      string
 	StripeCheckoutSessionPriceID                        string
 	StripeWebhookSigningSecret                          string
+	StripeCheckoutSessionMetadataMarkerValue            string
 	AUTHGEAR_ONCE_PUBLIC_URL_SCHEME                     string
 	AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE string
 	AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE           string
@@ -291,9 +292,10 @@ func Handler_v1_stripe_checkout(w http.ResponseWriter, r *http.Request) {
 	stripeClient := deps.StripeClient
 
 	checkoutSession, err := pkgstripe.NewCheckoutSession(ctx, stripeClient, &pkgstripe.CheckoutSessionParams{
-		SuccessURL: deps.StripeCheckoutSessionSuccessURL,
-		CancelURL:  deps.StripeCheckoutSessionCancelURL,
-		PriceID:    deps.StripeCheckoutSessionPriceID,
+		MarkerValue: deps.StripeCheckoutSessionMetadataMarkerValue,
+		SuccessURL:  deps.StripeCheckoutSessionSuccessURL,
+		CancelURL:   deps.StripeCheckoutSessionCancelURL,
+		PriceID:     deps.StripeCheckoutSessionPriceID,
 	})
 	if err != nil {
 		slogging.Error(ctx, logger, "failed to create checkout session",
@@ -315,7 +317,7 @@ func Handler_v1_stripe_webhook(w http.ResponseWriter, r *http.Request) {
 
 	e, err := pkgstripe.ConstructEvent(ctx, deps.StripeClient, r, pkgstripe.ConstructEventOptions{
 		SigningSecret: deps.StripeWebhookSigningSecret,
-		PriceID:       deps.StripeCheckoutSessionPriceID,
+		MarkerValue:   deps.StripeCheckoutSessionMetadataMarkerValue,
 	})
 	if err != nil {
 		if errors.Is(err, pkgstripe.ErrUnknownEvent) {
@@ -421,15 +423,16 @@ func main() {
 	})
 
 	dependencies := Dependencies{
-		HTTPClient:                      &http.Client{},
-		StripeClient:                    stripeClient,
-		SMTPDialer:                      smtpDialer,
-		SMTPSender:                      os.Getenv("AUTHGEAR_ONCE_SMTP_SENDER"),
-		StripeCheckoutSessionSuccessURL: os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
-		StripeCheckoutSessionCancelURL:  os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
-		StripeCheckoutSessionPriceID:    os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_PRICE_ID"),
-		StripeWebhookSigningSecret:      os.Getenv("AUTHGEAR_ONCE_STRIPE_WEBHOOK_SIGNING_SECRET"),
-		AUTHGEAR_ONCE_PUBLIC_URL_SCHEME: os.Getenv("AUTHGEAR_ONCE_PUBLIC_URL_SCHEME"),
+		HTTPClient:                               &http.Client{},
+		StripeClient:                             stripeClient,
+		SMTPDialer:                               smtpDialer,
+		SMTPSender:                               os.Getenv("AUTHGEAR_ONCE_SMTP_SENDER"),
+		StripeCheckoutSessionSuccessURL:          os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_SUCCESS_URL"),
+		StripeCheckoutSessionCancelURL:           os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_CANCEL_URL"),
+		StripeCheckoutSessionPriceID:             os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_PRICE_ID"),
+		StripeWebhookSigningSecret:               os.Getenv("AUTHGEAR_ONCE_STRIPE_WEBHOOK_SIGNING_SECRET"),
+		StripeCheckoutSessionMetadataMarkerValue: os.Getenv("AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_METADATA_MARKER_VALUE"),
+		AUTHGEAR_ONCE_PUBLIC_URL_SCHEME:          os.Getenv("AUTHGEAR_ONCE_PUBLIC_URL_SCHEME"),
 		AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE: os.Getenv("AUTHGEAR_ONCE_ONCE_COMMAND_DOWNLOAD_URL_GO_TEMPLATE"),
 		AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE:           os.Getenv("AUTHGEAR_ONCE_ONCE_COMMAND_IMAGE_OVERRIDE"),
 		KeygenConfig: keygen.KeygenConfig{
@@ -450,6 +453,11 @@ func main() {
 	logger := slog.New(handler)
 
 	ctx = slogging.WithLogger(ctx, logger)
+
+	if dependencies.StripeCheckoutSessionMetadataMarkerValue == "" {
+		slogging.Error(ctx, logger, "AUTHGEAR_ONCE_STRIPE_CHECKOUT_SESSION_METADATA_MARKER_VALUE must be set")
+		os.Exit(1)
+	}
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		slogging.Error(ctx, logger, "root command completed with error",

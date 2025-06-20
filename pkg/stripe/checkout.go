@@ -7,10 +7,13 @@ import (
 	"github.com/stripe/stripe-go/v82/client"
 )
 
+const MetadataKeyMarker = "authgear_once_license_server"
+
 type CheckoutSessionParams struct {
-	SuccessURL string
-	CancelURL  string
-	PriceID    string
+	MarkerValue string
+	SuccessURL  string
+	CancelURL   string
+	PriceID     string
 }
 
 func NewCheckoutSession(ctx context.Context, client *client.API, params *CheckoutSessionParams) (*stripe.CheckoutSession, error) {
@@ -28,6 +31,9 @@ func NewCheckoutSession(ctx context.Context, client *client.API, params *Checkou
 				Price:    stripe.String(params.PriceID),
 				Quantity: stripe.Int64(1),
 			},
+		},
+		Metadata: map[string]string{
+			MetadataKeyMarker: params.MarkerValue,
 		},
 	}
 

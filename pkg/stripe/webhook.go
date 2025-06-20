@@ -16,7 +16,7 @@ var ErrUnknownEvent = errors.New("pkgstripe: unknown event")
 
 type ConstructEventOptions struct {
 	SigningSecret string
-	PriceID       string
+	MarkerValue   string
 }
 
 func ConstructEvent(ctx context.Context, client *client.API, r *http.Request, opts ConstructEventOptions) (*stripe.Event, error) {
@@ -45,10 +45,9 @@ func ConstructEvent(ctx context.Context, client *client.API, r *http.Request, op
 		return nil, err
 	}
 
-	for _, lineItem := range checkoutSession.LineItems.Data {
-		if lineItem.Price.ID == opts.PriceID {
-			return &e, nil
-		}
+	marker := checkoutSession.Metadata[MetadataKeyMarker]
+	if marker == opts.MarkerValue {
+		return &e, nil
 	}
 
 	return &e, ErrUnknownEvent
