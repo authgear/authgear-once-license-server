@@ -1,4 +1,4 @@
-FROM quay.io/theauthgear/golang:1.24.2-noble AS stage1
+FROM quay.io/theauthgear/golang:1.24.4-noble AS stage1
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

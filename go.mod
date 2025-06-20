@@ -1,6 +1,6 @@
 module github.com/authgear/authgear-once-license-server
 
-go 1.24.2
+go 1.24.4
 
 require (
 	github.com/getsentry/sentry-go v0.32.0
