@@ -1,27 +1,57 @@
 package stripe
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/client"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
-func ConstructEvent(r *http.Request, signingSecret string) (*stripe.Event, error) {
+var ErrUnknownEvent = errors.New("pkgstripe: unknown event")
+
+type ConstructEventOptions struct {
+	SigningSecret string
+	PriceID       string
+}
+
+func ConstructEvent(ctx context.Context, client *client.API, r *http.Request, opts ConstructEventOptions) (*stripe.Event, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	sig := r.Header.Get("Stripe-Signature")
-	e, err := webhook.ConstructEvent(body, sig, signingSecret)
+	e, err := webhook.ConstructEvent(body, sig, opts.SigningSecret)
 	if err != nil {
 		return nil, err
 	}
 
-	return &e, nil
+	if e.Type != stripe.EventTypeCheckoutSessionCompleted {
+		return &e, ErrUnknownEvent
+	}
+
+	checkoutSessionID := GetEventDataID(&e)
+	checkoutSession, err := client.CheckoutSessions.Get(checkoutSessionID, &stripe.CheckoutSessionParams{
+		Expand: []*string{
+			stripe.String("line_items"),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, lineItem := range checkoutSession.LineItems.Data {
+		if lineItem.Price.ID == opts.PriceID {
+			return &e, nil
+		}
+	}
+
+	return &e, ErrUnknownEvent
 }
 
 func IsWebhookClientError(err error) bool {
@@ -196,10 +226,10 @@ func GetCustomerEmail(e *stripe.Event) (string, bool) {
 	return email, true
 }
 
-func GetCheckoutSessionID(e *stripe.Event) (string, bool) {
-	id, ok := e.Data.Object["id"].(string)
-	if !ok {
-		return "", false
+func GetEventDataID(e *stripe.Event) string {
+	id := e.Data.Object["id"].(string)
+	if id == "" {
+		panic(fmt.Errorf("stripe event data has no ID"))
 	}
-	return id, true
+	return id
 }

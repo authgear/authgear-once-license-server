@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +18,6 @@ import (
 	"github.com/joho/godotenv"
 	slogmulti "github.com/samber/slog-multi"
 	"github.com/spf13/cobra"
-	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/client"
 	"gopkg.in/gomail.v2"
 
@@ -315,8 +313,17 @@ func Handler_v1_stripe_webhook(w http.ResponseWriter, r *http.Request) {
 	logger := slogging.GetLogger(ctx)
 	deps := GetDependencies(ctx)
 
-	e, err := pkgstripe.ConstructEvent(r, deps.StripeWebhookSigningSecret)
+	e, err := pkgstripe.ConstructEvent(ctx, deps.StripeClient, r, pkgstripe.ConstructEventOptions{
+		SigningSecret: deps.StripeWebhookSigningSecret,
+		PriceID:       deps.StripeCheckoutSessionPriceID,
+	})
 	if err != nil {
+		if errors.Is(err, pkgstripe.ErrUnknownEvent) {
+			// Ignore the event by returning 200
+			slogging.Error(ctx, logger, "ignore unknown event", "stripe_event_id", e.ID)
+			return
+		}
+
 		slogging.Error(ctx, logger, "failed to construct webhook event",
 			"error", err)
 		if !pkgstripe.IsWebhookClientError(err) {
@@ -326,73 +333,61 @@ func Handler_v1_stripe_webhook(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	logger = logger.With("stripe_event_id", e.ID)
+	slogging.Info(ctx, logger, "handling event")
 
-	switch e.Type {
-	case stripe.EventTypeCheckoutSessionCompleted:
-		b, err := json.Marshal(e)
-		if err != nil {
-			panic(err)
-		}
-		logger = logger.With("stripe_event_json_base64url", base64.RawURLEncoding.EncodeToString(b))
+	checkoutSessionID := pkgstripe.GetEventDataID(e)
+	logger = logger.With("stripe_checkout_session_id", checkoutSessionID)
 
-		checkoutSessionID, ok := pkgstripe.GetCheckoutSessionID(e)
-		if !ok {
-			slogging.Error(ctx, logger, "checkout session ID not found")
-			http.Error(w, "checkout session ID not found", http.StatusInternalServerError)
-			return
-		}
+	customerID, ok := pkgstripe.GetCustomerID(e)
+	if !ok {
+		slogging.Error(ctx, logger, "customer id not found")
+		http.Error(w, "customer id not found", http.StatusInternalServerError)
+		return
+	}
+	logger = logger.With("stripe_customer_id", customerID)
 
-		customerID, ok := pkgstripe.GetCustomerID(e)
-		if !ok {
-			slogging.Error(ctx, logger, "customer id not found")
-			http.Error(w, "customer id not found", http.StatusInternalServerError)
-			return
-		}
+	email, ok := pkgstripe.GetCustomerEmail(e)
+	if !ok {
+		slogging.Error(ctx, logger, "customer email not found")
+		http.Error(w, "customer email not found", http.StatusInternalServerError)
+		return
+	}
 
-		email, ok := pkgstripe.GetCustomerEmail(e)
-		if !ok {
-			slogging.Error(ctx, logger, "customer email not found")
-			http.Error(w, "customer email not found", http.StatusInternalServerError)
-			return
-		}
+	licenseKey, err := keygen.CreateLicenseKey(ctx, deps.HTTPClient, keygen.CreateLicenseKeyOptions{
+		KeygenConfig:            deps.KeygenConfig,
+		StripeCheckoutSessionID: checkoutSessionID,
+		StripeCustomerID:        customerID,
+	})
+	if err != nil {
+		slogging.Error(ctx, logger, "failed to create license key",
+			"error", err)
+		http.Error(w, "failed to create license key", http.StatusInternalServerError)
+		return
+	}
 
-		licenseKey, err := keygen.CreateLicenseKey(ctx, deps.HTTPClient, keygen.CreateLicenseKeyOptions{
-			KeygenConfig:            deps.KeygenConfig,
-			StripeCheckoutSessionID: checkoutSessionID,
-			StripeCustomerID:        customerID,
-		})
-		if err != nil {
-			slogging.Error(ctx, logger, "failed to create license key",
-				"error", err)
-			http.Error(w, "failed to create license key", http.StatusInternalServerError)
-			return
-		}
+	u := ConstructFullURL(r)
+	u.Path = fmt.Sprintf("/install/%v", licenseKey)
 
-		u := ConstructFullURL(r)
-		u.Path = fmt.Sprintf("/install/%v", licenseKey)
+	htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
+		InstallationOneliner: fmt.Sprintf(`/bin/sh -c "$(curl -fsSL %v)"`, u.String()),
+	})
 
-		htmlBody := emailtemplate.RenderInstallationEmail(emailtemplate.InstallationEmailData{
-			InstallationOneliner: fmt.Sprintf(`/bin/sh -c "$(curl -fsSL %v)"`, u.String()),
-		})
+	opts := smtp.EmailOptions{
+		Sender:   deps.SMTPSender,
+		Subject:  "Installing Authgear once",
+		HTMLBody: htmlBody,
+		To:       email,
+	}
 
-		opts := smtp.EmailOptions{
-			Sender:   deps.SMTPSender,
-			Subject:  "Installing Authgear once",
-			HTMLBody: htmlBody,
-			To:       email,
-		}
-
-		err = smtp.SendEmail(deps.SMTPDialer, opts)
-		if err != nil {
-			slogging.Error(ctx, logger, "failed to send email",
-				"error", err)
-			http.Error(w, "failed to send email", http.StatusInternalServerError)
-		} else {
-			slogging.Info(ctx, logger, "sent installation to checkout session",
-				"checkout_session_id", checkoutSessionID,
-				"customer_id", customerID)
-			// Return 200 implicitly.
-		}
+	err = smtp.SendEmail(deps.SMTPDialer, opts)
+	if err != nil {
+		slogging.Error(ctx, logger, "failed to send email",
+			"error", err)
+		http.Error(w, "failed to send email", http.StatusInternalServerError)
+	} else {
+		slogging.Info(ctx, logger, "sent installation to checkout session")
+		// Return 200 implicitly.
 	}
 }
 
