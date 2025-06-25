@@ -144,7 +144,8 @@
                       <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
                         <div style="font-family:-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji;font-size:13px;line-height:1;text-align:left;color:#000000;">
                           <p>Hey there,</p>
-                          <p>Thank you for purchasing Authgear once. This email contains everything you need to install and host Authgear on your own server.</p>
+                          <p>Thank you for purchasing Authgear ONCE. This email contains everything you need to install and host Authgear on your own server.</p>
+                          <p>You can see this 7-minute video to follow along: <a href="https://youtu.be/VpSZYHJu7DM">https://youtu.be/VpSZYHJu7DM</a></p>
                           <p>Before you begin, you will need a few things:</p>
                           <ul>
                             <li>A domain name</li>
@@ -171,13 +172,15 @@
                                     <td>A</td>
                                     <td>auth</td>
                                     <td>IP of the machine</td>
-                                    <td>The authentication endpoint</td>
+                                    <!-- Add https://en.wikipedia.org/wiki/Word_joiner to prevent email client from turning it into a link -->
+                                    <td>The auth endpoint, your users will see <strong>auth&#x2060;.yourdomain&#x2060;.com</strong> when they login</td>
                                   </tr>
                                   <tr>
                                     <td>A</td>
                                     <td>authgear-portal</td>
                                     <td>IP of the machine</td>
-                                    <td>The admin portal for CIAM functions</td>
+                                    <!-- Add https://en.wikipedia.org/wiki/Word_joiner to prevent email client from turning it into a link -->
+                                    <td>The admin portal, you will login at <strong>authgear-portal&#x2060;.yourdomain&#x2060;.com</strong> to configure and manage users</td>
                                   </tr>
                                   <tr>
                                     <td>A</td>

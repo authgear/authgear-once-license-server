@@ -377,7 +377,7 @@ func Handler_v1_stripe_webhook(w http.ResponseWriter, r *http.Request) {
 
 	opts := smtp.EmailOptions{
 		Sender:   deps.SMTPSender,
-		Subject:  "Installing Authgear once",
+		Subject:  "Installing Authgear ONCE",
 		HTMLBody: htmlBody,
 		To:       email,
 	}
