@@ -27,8 +27,15 @@
       ol li {
         margin: 1em 0;
       }
+      section {
+        margin: 2rem 0;
+      }
       p {
-        margin: 1rem 0;
+        margin: 0 0;
+      }
+      .my-1em {
+        margin-top: 1em;
+        margin-bottom: 1em;
       }
       .list-number {
         list-style-type: decimal;
@@ -50,90 +57,106 @@
     <mj-section>
       <mj-column>
         <mj-text>
-          <p>Hey there,</p>
+          <section>
+            <p>Hey there,</p>
+          </section>
 
-          <p>Thank you for purchasing Authgear ONCE. This email contains everything you need to install and host Authgear on your own server.</p>
+          <section>
+            <p>Thank you for purchasing Authgear ONCE. This email contains everything you need to install and host Authgear on your own server.</p>
+          </section>
 
-          <p>You can see this 7-minute video to follow along: <a href="https://youtu.be/VpSZYHJu7DM">https://youtu.be/VpSZYHJu7DM</a></p>
+          <section>
+            <p>You can see this 7-minute video to follow along: <a href="https://youtu.be/VpSZYHJu7DM">https://youtu.be/VpSZYHJu7DM</a></p>
+          </section>
 
-          <p>Before you begin, you will need a few things:</p>
-          <ul>
-            <li>A domain name</li>
-            <li>A VM/computer with Docker installed</li>
-          </ul>
+          <section>
+            <p>Before you begin, you will need a few things:</p>
+            <ul>
+              <li>A domain name</li>
+              <li>A VM/computer with Docker installed</li>
+            </ul>
+          </section>
 
-          <p>Follow these steps to get Authgear running:</p>
-          <ol class="list-number">
-            <li>
-              <p><strong>Choose a machine to host Authgear</strong>, for example cloud services like <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-vultr">Vultr</a>, <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-amazon-web-services-aws">AWS</a>, or <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-a-vm">any Linux machine</a>.</p>
-            </li>
-            <li>
-              <p><strong>Add the following DNS records for your domain</strong> and point them to the IP of the machine.</p>
-              <table class="mytable">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Name</th>
-                    <th>Value</th>
-                    <th>Usage</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>A</td>
-                    <td>auth</td>
-                    <td>IP of the machine</td>
-                    <!-- Add https://en.wikipedia.org/wiki/Word_joiner to prevent email client from turning it into a link -->
-                    <td>The auth endpoint, your users will see <strong>auth&#x2060;.yourdomain&#x2060;.com</strong> when they login</td>
-                  </tr>
-                  <tr>
-                    <td>A</td>
-                    <td>authgear-portal</td>
-                    <td>IP of the machine</td>
-                    <!-- Add https://en.wikipedia.org/wiki/Word_joiner to prevent email client from turning it into a link -->
-                    <td>The admin portal, you will login at <strong>authgear-portal&#x2060;.yourdomain&#x2060;.com</strong> to configure and manage users</td>
-                  </tr>
-                  <tr>
-                    <td>A</td>
-                    <td>authgear-portal-accounts</td>
-                    <td>IP of the machine</td>
-                    <td>A domain for logging into the Authgear portal. You don't need to access it directly.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </li>
-            <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
-            <li><strong>Install Docker on the machine.</strong> Visit <a target="_blank" href="https://docs.docker.com/get-started/get-docker/">https://docs.docker.com/get-started/get-docker/</a> for instructions.</li>
-            <li><strong>Run the following command in the terminal</strong></li>
-          </ol>
+          <section>
+            <p>Follow these steps to get Authgear running:</p>
+            <ol class="list-number">
+              <li>
+                <strong>Choose a machine to host Authgear</strong>, for example cloud services like <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-vultr">Vultr</a>, <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-amazon-web-services-aws">AWS</a>, or <a target="_blank" href="https://docs.authgear.com/authgear-once/install-authgear-once-on-a-vm">any Linux machine</a>.
+              </li>
+              <li>
+                <p class="my-1em"><strong>Add the following DNS records for your domain</strong> and point them to the IP of the machine.</p>
+                <table class="mytable">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Name</th>
+                      <th>Value</th>
+                      <th>Usage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>A</td>
+                      <td>auth</td>
+                      <td>IP of the machine</td>
+                      <!-- Add https://en.wikipedia.org/wiki/Word_joiner to prevent email client from turning it into a link -->
+                      <td>The auth endpoint, your users will see <strong>auth&#x2060;.yourdomain&#x2060;.com</strong> when they login</td>
+                    </tr>
+                    <tr>
+                      <td>A</td>
+                      <td>authgear-portal</td>
+                      <td>IP of the machine</td>
+                      <!-- Add https://en.wikipedia.org/wiki/Word_joiner to prevent email client from turning it into a link -->
+                      <td>The admin portal, you will login at <strong>authgear-portal&#x2060;.yourdomain&#x2060;.com</strong> to configure and manage users</td>
+                    </tr>
+                    <tr>
+                      <td>A</td>
+                      <td>authgear-portal-accounts</td>
+                      <td>IP of the machine</td>
+                      <td>A domain for logging into the Authgear portal. You don't need to access it directly.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </li>
+              <li><strong>Connect a terminal to the machine.</strong> Either via SSH or the web console provided by your cloud provider.</li>
+              <li><strong>Install Docker on the machine.</strong> Visit <a target="_blank" href="https://docs.docker.com/get-started/get-docker/">https://docs.docker.com/get-started/get-docker/</a> for instructions.</li>
+              <li><strong>Run the following command in the terminal</strong></li>
+            </ol>
+            <pre>{{ $.InstallationOneliner }}</pre>
+            <p class="my-1em">
+              The personalized command above contains your unique license key. <strong>DO NOT share this command on public forums, websites, or repositories</strong> as it's tied to the license you purchased.
+            </p>
+          </section>
 
-          <pre>{{ $.InstallationOneliner }}</pre>
+          <section>
+            <p class="my-1em">
+              After installation, you can check for updates and upgrade your Authgear instance by running:
+            </p>
+            <pre>authgear-once upgrade</pre>
+          </section>
 
-          <p>
-            The personalized command above contains your unique license key. <strong>DO NOT share this command on public forums, websites, or repositories</strong> as it's tied to the license you purchased.
-          </p>
+          <section>
+            <p>
+              If you'd like to run multiple installations of Authgear, you'll need to get one license per installation/domain.
+            </p>
+          </section>
 
-          <p>
-            After installation, you can check for updates and upgrade your Authgear instance by running:
-          </p>
-          <pre>authgear-once upgrade</pre>
+          <section>
+            <p class="my-1em">
+              We're excited to see what you build with Authgear! Here's how to get help if needed:
+            </p>
+            <ul>
+              <li>Documentation: <a target="_blank" href="https://docs.authgear.com">docs.authgear.com</a></li>
+              <li>Community: Join our <a target="_blank" href="https://discord.gg/Kdn5vcYwAS">Discord community</a> to share your project and connect with other developers</li>
+              <li>Email: <a target="_blank" href="mailto:once@authgear.com">once@authgear.com</a></li>
+            </ul>
+            <p>Happy building!</p>
+          </section>
 
-          <p>
-            If you'd like to run multiple installations of Authgear, you'll need to get one license per installation/domain.
-          </p>
+          <section>
+            <p>Authgear team</p>
+          </section>
 
-          <p>
-            We're excited to see what you build with Authgear! Here's how to get help if needed:
-          </p>
-          <ul>
-            <li>Documentation: <a target="_blank" href="https://docs.authgear.com">docs.authgear.com</a></li>
-            <li>Community: Join our <a target="_blank" href="https://discord.gg/Kdn5vcYwAS">Discord community</a> to share your project and connect with other developers</li>
-            <li>Email: <a target="_blank" href="mailto:once@authgear.com">once@authgear.com</a></li>
-          </ul>
-
-          <p>Happy building!</p>
-
-          <p>Authgear team</p>
         </mj-text>
       </mj-column>
     </mj-section>
